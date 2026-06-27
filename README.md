@@ -11,7 +11,7 @@ mirroring the feature set of the reference NestJS backend through **Phase 03**
 
 - **Language/Framework:** Java 21 (LTS) + Spring Boot 3.3.x
 - **Architecture:** Clean Architecture — `domain` → `application` → `infrastructure` / `web`
-- **Build:** Maven (multi-module)
+- **Build:** Gradle (Kotlin DSL, multi-module, version catalog)
 - **Persistence:** Spring Data JPA (Hibernate) + Flyway (PostgreSQL)
 - **Messaging:** RabbitMQ (Spring AMQP) — video processing queue + worker
 - **Storage:** AWS SDK for Java v2 (MinIO locally, S3-compatible)

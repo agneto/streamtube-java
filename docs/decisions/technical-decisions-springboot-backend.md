@@ -82,9 +82,9 @@ framework/persistence annotations.
 - **Pros:** Faster incremental builds, concise DSL.
 - **Cons:** Steeper learning curve; more variability across versions.
 
-**Recommendation:** **Option A (Maven)** — most conventional and best-documented; build speed is a non-issue at this project size.
+**Recommendation:** Either is fine at this size. Maven is the most conventional; Gradle (Kotlin DSL) offers faster incremental builds, a concise DSL, and a typed version catalog.
 
-**Decision:** A (Maven, multi-module — see TD-10 for the worker module split)
+**Decision:** **B (Gradle, Kotlin DSL, multi-module)** — chosen by the maintainer. Uses a `gradle/libs.versions.toml` version catalog and the Gradle wrapper; see TD-10 for the module split.
 
 ---
 
@@ -234,8 +234,8 @@ separate container/process consuming the queue.
 
 **Options:**
 
-### Option A: Separate Maven module / Spring Boot app (`worker`) consuming RabbitMQ
-- Multi-module Maven: `domain`, `application`, `infrastructure`, `bootstrap-api`, `bootstrap-worker`. The worker app has no web server; it wires the RabbitMQ listener, JPA, and storage, and shells out to FFmpeg via `ProcessBuilder`.
+### Option A: Separate Gradle module / Spring Boot app (`worker`) consuming RabbitMQ
+- Multi-module Gradle: `domain`, `application`, `infrastructure`, `bootstrap-api`, `bootstrap-worker`. The worker app has no web server; it wires the RabbitMQ listener, JPA, and storage, and shells out to FFmpeg via `ProcessBuilder`.
 - **Pros:** Matches the target architecture; isolates CPU-heavy FFmpeg from the API; independently scalable; FFmpeg installed only in the worker image.
 - **Cons:** One more module + Dockerfile.
 
@@ -294,7 +294,7 @@ separate container/process consuming the queue.
 - **Integration** (`*IT` / `*IntegrationTest`) — real Postgres/RabbitMQ/MinIO via **Testcontainers**; repositories, storage adapter, queue round-trips.
 - **E2E** (`*E2ETest`) — full app via `@SpringBootTest(webEnvironment = RANDOM_PORT)` + **MockMvc**/**RestAssured**, real test DB; auth flows and video endpoints end-to-end.
 
-Definition of Done per phase: relevant suite green, full suite green, `mvn -q verify` (compile + tests) exits 0, and static analysis/format check passes (Spotless + Checkstyle).
+Definition of Done per phase: relevant suite green, full suite green, `./gradlew build` (compile + tests) exits 0, and static analysis/format check passes (Spotless).
 
 ---
 
@@ -304,7 +304,7 @@ Definition of Done per phase: relevant suite green, full suite green, `mvn -q ve
 |----|-------|----------|
 | TD-01 | Language & framework | Java 21 LTS + Spring Boot 3.3.x |
 | TD-02 | Architecture | Strict Clean Architecture (pure domain, use cases over ports, infra adapters + MapStruct, web presentation) |
-| TD-03 | Build tool | Maven (multi-module) |
+| TD-03 | Build tool | Gradle (Kotlin DSL, multi-module, version catalog) |
 | TD-04 | Persistence | Spring Data JPA + Hibernate, persistence models separate from domain |
 | TD-05 | Migrations | Flyway (SQL-first) |
 | TD-06 | Message queue | RabbitMQ (Spring AMQP) — retry/backoff + DLQ |

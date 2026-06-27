@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: streamtube-worker
+
+# Phase 01: worker boots standalone with no broker/DB wiring yet.
+# RabbitMQ + datasource configuration is added in Phase 03.
