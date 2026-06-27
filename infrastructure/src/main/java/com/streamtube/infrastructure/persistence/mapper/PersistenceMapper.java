@@ -4,10 +4,12 @@ import com.streamtube.domain.auth.RefreshToken;
 import com.streamtube.domain.auth.VerificationToken;
 import com.streamtube.domain.channel.Channel;
 import com.streamtube.domain.user.User;
+import com.streamtube.domain.video.Video;
 import com.streamtube.infrastructure.persistence.entity.ChannelEntity;
 import com.streamtube.infrastructure.persistence.entity.RefreshTokenEntity;
 import com.streamtube.infrastructure.persistence.entity.UserEntity;
 import com.streamtube.infrastructure.persistence.entity.VerificationTokenEntity;
+import com.streamtube.infrastructure.persistence.entity.VideoEntity;
 
 /** Hand-written mappers between pure domain entities and JPA persistence entities. */
 public final class PersistenceMapper {
@@ -89,5 +91,37 @@ public final class PersistenceMapper {
         e.getExpiresAt(),
         e.getConsumedAt(),
         e.getCreatedAt());
+  }
+
+  public static VideoEntity toEntity(Video v) {
+    return new VideoEntity(
+        v.id(),
+        v.channelId(),
+        v.title(),
+        v.slug(),
+        v.status(),
+        v.storageKey(),
+        v.thumbnailKey(),
+        v.durationSeconds(),
+        v.metadata(),
+        v.errorMessage(),
+        v.createdAt(),
+        v.updatedAt());
+  }
+
+  public static Video toDomain(VideoEntity e) {
+    return new Video(
+        e.getId(),
+        e.getChannelId(),
+        e.getTitle(),
+        e.getSlug(),
+        e.getStatus(),
+        e.getStorageKey(),
+        e.getThumbnailKey(),
+        e.getDurationSeconds(),
+        e.getMetadata(),
+        e.getErrorMessage(),
+        e.getCreatedAt(),
+        e.getUpdatedAt());
   }
 }

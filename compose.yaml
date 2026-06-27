@@ -12,14 +12,56 @@ services:
       DB_NAME: streamtube
       DB_USERNAME: streamtube
       DB_PASSWORD: streamtube
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: streamtube
+      RABBITMQ_PASSWORD: streamtube
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_URL: http://localhost:9000
+      STORAGE_BUCKET: streamtube-videos
+      STORAGE_ACCESS_KEY: streamtube
+      STORAGE_SECRET_KEY: streamtube_secret
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
     depends_on:
       db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "sh", "-c", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: streamtube
+      DB_USERNAME: streamtube
+      DB_PASSWORD: streamtube
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: streamtube
+      RABBITMQ_PASSWORD: streamtube
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_URL: http://localhost:9000
+      STORAGE_BUCKET: streamtube-videos
+      STORAGE_ACCESS_KEY: streamtube
+      STORAGE_SECRET_KEY: streamtube_secret
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
   db:
     image: postgres:17
@@ -37,9 +79,11 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    # Host ports offset (5673/15673) so this stack coexists with other local RabbitMQ
+    # instances; inter-container traffic still uses the service name on 5672.
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5673:5672"
+      - "15673:15672"
     environment:
       RABBITMQ_DEFAULT_USER: streamtube
       RABBITMQ_DEFAULT_PASS: streamtube

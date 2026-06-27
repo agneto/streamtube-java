@@ -37,9 +37,11 @@ public class GlobalExceptionHandler {
     return switch (code) {
       case "EMAIL_ALREADY_REGISTERED" -> HttpStatus.CONFLICT;
       case "INVALID_CREDENTIALS", "TOKEN_REUSE_DETECTED" -> HttpStatus.UNAUTHORIZED;
-      case "EMAIL_NOT_CONFIRMED" -> HttpStatus.FORBIDDEN;
+      case "EMAIL_NOT_CONFIRMED", "FORBIDDEN_VIDEO_ACCESS" -> HttpStatus.FORBIDDEN;
       case "TOKEN_EXPIRED" -> HttpStatus.GONE;
-      case "USER_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+      case "USER_NOT_FOUND", "VIDEO_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+      case "UPLOAD_NOT_COMPLETED" -> HttpStatus.CONFLICT;
+      case "VIDEO_STATUS_CONFLICT", "VIDEO_NOT_READY" -> HttpStatus.UNPROCESSABLE_ENTITY;
       default -> HttpStatus.BAD_REQUEST;
     };
   }

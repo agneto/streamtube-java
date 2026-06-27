@@ -9,7 +9,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+    implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.security:spring-security-crypto")
+    implementation(platform(libs.awssdk.bom))
+    implementation(libs.awssdk.s3)
     implementation(libs.bouncycastle)
     implementation(libs.jjwt.api)
     runtimeOnly(libs.jjwt.impl)
@@ -17,4 +20,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
+
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:minio")
 }
