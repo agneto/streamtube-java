@@ -66,7 +66,9 @@ framework/persistence annotations.
 
 **Recommendation:** **Option A** — the whole point of the request is Clean Architecture; pay the mapping cost (with MapStruct) to keep the domain pure.
 
-**Decision:** A (Strict layering — pure `domain`, `application` use cases over ports, `infrastructure` adapters with separate JPA persistence models + MapStruct mappers, `web` presentation)
+**Decision:** A (Strict layering — pure `domain`, `application` use cases over ports, `infrastructure` adapters with separate JPA persistence models + hand-written mappers, `web` presentation).
+
+**Implementation notes (Phase 02):** the `domain` module stays 100% framework-free. The `application` module uses Spring stereotypes (`@Service`/`@Transactional`) purely for wiring/transaction boundaries — no web or persistence dependencies. Mappers are hand-written (MapStruct was considered but dropped to keep the build dependency-light and predictable).
 
 ---
 
@@ -182,6 +184,10 @@ verification and password reset token flows.
 **Recommendation:** **Option A** — the refresh-token rotation with reuse detection and grace period is custom domain logic regardless; jjwt + a thin filter keeps the access-token path explicit and matches the existing behavior 1:1.
 
 **Decision:** A (Spring Security 6 + jjwt; stateless access JWT via a `OncePerRequestFilter`; persisted hashed refresh tokens with `family`/`jti`, rotation, reuse detection, and grace period mirroring the NestJS implementation; global default-protected endpoints with explicit public allowlist)
+
+**Implementation notes (Phase 02):**
+- **Access token** = HS256 JWT (subject = userId, `email` claim). **Refresh token** = opaque 256-bit random secret stored only as a SHA-256 hash (not a JWT). This is simpler and equally secure: a forged/leaked-hash token cannot be reversed, and lookup is by hash. Verification tokens (email confirm / password reset) use the same opaque-secret + hash scheme.
+- **Grace-period behavior:** a revoked token presented within the 10s window is treated as a benign retry and rotated normally (same family); presented past the window it is reuse → the whole family is revoked. (Returning the exact already-issued token isn't possible since only hashes are stored — this adaptation preserves the security property while tolerating client races.)
 
 ---
 

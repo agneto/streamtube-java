@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Confirm your account</title>
+  </head>
+  <body>
+    <h1>Welcome to StreamTube</h1>
+    <p>Please confirm your email address to activate your account:</p>
+    <p>
+      <a th:href="${link}" th:text="${link}">confirm link</a>
+    </p>
+    <p>If you did not create this account, you can ignore this email.</p>
+  </body>
+</html>

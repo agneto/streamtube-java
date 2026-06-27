@@ -3,9 +3,17 @@ springBoot = "3.3.5"
 springDependencyManagement = "1.1.6"
 springdoc = "2.6.0"
 spotless = "6.25.0"
+jjwt = "0.12.6"
+bouncycastle = "1.78.1"
+bucket4j = "8.10.1"
 
 [libraries]
 springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
+jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
+jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
+bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
