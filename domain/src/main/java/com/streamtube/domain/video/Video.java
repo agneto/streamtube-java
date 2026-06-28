@@ -8,7 +8,7 @@ public class Video {
 
   private final UUID id;
   private final UUID channelId;
-  private final String title;
+  private String title;
   private final String slug;
   private VideoStatus status;
   private final String storageKey;
@@ -52,6 +52,18 @@ public class Video {
     return new Video(
         id, channelId, title, slug, VideoStatus.PENDING_UPLOAD, storageKey, null, null, null, null,
         now, now);
+  }
+
+  /**
+   * Renames the video. Domain invariant: the title must be non-blank and at most 255 chars. This
+   * rule belongs here (it is true for any video, regardless of the use case calling it).
+   */
+  public void rename(String newTitle, Instant now) {
+    if (newTitle == null || newTitle.isBlank() || newTitle.trim().length() > 255) {
+      throw new com.streamtube.domain.shared.VideoExceptions.InvalidVideoTitleException();
+    }
+    this.title = newTitle.trim();
+    this.updatedAt = now;
   }
 
   public void markQueued(Instant now) {

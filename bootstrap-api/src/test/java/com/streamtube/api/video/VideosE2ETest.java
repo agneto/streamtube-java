@@ -2,6 +2,7 @@ package com.streamtube.api.video;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -105,6 +106,64 @@ class VideosE2ETest {
   @Test
   void unknownSlugIsNotFound() throws Exception {
     mockMvc.perform(get("/videos/does-not-ex")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void ownerCanRenameVideo() throws Exception {
+    String token = registerConfirmLogin("rename-owner@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Título antigo"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+
+    mockMvc
+        .perform(
+            patch("/videos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "Título novo"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("Título novo"));
+  }
+
+  @Test
+  void renameByNonOwnerIsForbidden() throws Exception {
+    String owner = registerConfirmLogin("rename-owner2@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/videos")
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("title", "Dono"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+
+    String other = registerConfirmLogin("rename-other@test.com");
+    mockMvc
+        .perform(
+            patch("/videos/" + id)
+                .header("Authorization", "Bearer " + other)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "Invasor"))))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void renameRequiresAuth() throws Exception {
+    mockMvc
+        .perform(
+            patch("/videos/" + UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "x"))))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

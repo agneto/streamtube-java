@@ -2,12 +2,14 @@ package com.streamtube.api.web;
 
 import com.streamtube.api.web.dto.VideoDtos.CreateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.InitiateUploadResponse;
+import com.streamtube.api.web.dto.VideoDtos.UpdateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.VideoInfoResponse;
 import com.streamtube.application.video.CompleteUploadUseCase;
 import com.streamtube.application.video.GetDownloadUrlUseCase;
 import com.streamtube.application.video.GetStreamUrlUseCase;
 import com.streamtube.application.video.GetVideoInfoUseCase;
 import com.streamtube.application.video.InitiateUploadUseCase;
+import com.streamtube.application.video.RenameVideoUseCase;
 import com.streamtube.application.video.result.InitiateUploadResult;
 import com.streamtube.application.video.result.VideoInfoView;
 import com.streamtube.infrastructure.security.AuthenticatedUser;
@@ -20,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,18 +40,21 @@ public class VideosController {
   private final GetVideoInfoUseCase getVideoInfo;
   private final GetStreamUrlUseCase getStreamUrl;
   private final GetDownloadUrlUseCase getDownloadUrl;
+  private final RenameVideoUseCase renameVideo;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
       CompleteUploadUseCase completeUpload,
       GetVideoInfoUseCase getVideoInfo,
       GetStreamUrlUseCase getStreamUrl,
-      GetDownloadUrlUseCase getDownloadUrl) {
+      GetDownloadUrlUseCase getDownloadUrl,
+      RenameVideoUseCase renameVideo) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
     this.getStreamUrl = getStreamUrl;
     this.getDownloadUrl = getDownloadUrl;
+    this.renameVideo = renameVideo;
   }
 
   @PostMapping
@@ -69,10 +75,22 @@ public class VideosController {
     completeUpload.execute(id, principal.id());
   }
 
+  @PatchMapping("/{id}")
+  @Operation(summary = "Rename a video (owner only)")
+  public VideoInfoResponse rename(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody UpdateVideoRequest request) {
+    return toResponse(renameVideo.execute(id, principal.id(), request.title()));
+  }
+
   @GetMapping("/{slug}")
   @Operation(summary = "Get public video info")
   public VideoInfoResponse info(@PathVariable("slug") String slug) {
-    VideoInfoView v = getVideoInfo.execute(slug);
+    return toResponse(getVideoInfo.execute(slug));
+  }
+
+  private VideoInfoResponse toResponse(VideoInfoView v) {
     return new VideoInfoResponse(
         v.id(),
         v.slug(),
