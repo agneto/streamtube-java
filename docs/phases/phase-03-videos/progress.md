@@ -32,3 +32,14 @@
 - Tests: **22 green, 0 skipped** across the project. Phase 03 additions: `ProcessVideoUseCaseTest` (3), `S3StorageAdapterIntegrationTest` (3, MinIO Testcontainers), `VideosE2ETest` (4, real Postgres).
 - `Dockerfile.worker` (ffmpeg) + `compose.yaml` worker service; RabbitMQ host ports offset to 5673/15673 to coexist with other local brokers.
 - Built on `feature/phase-03-videos` (from `dev`).
+
+## Real end-to-end smoke test (full Docker stack)
+
+Ran the whole stack (`docker compose up -d --build`: api + worker + postgres + rabbitmq + minio + mailpit) and exercised the real pipeline:
+register → confirm → login → `POST /videos` → **presigned PUT to MinIO (HTTP 200)** → `complete-upload` → **worker consumes RabbitMQ + runs FFprobe/FFmpeg** → `QUEUED → READY` in ~4s with `duration_seconds=3`, `thumbnail_key=thumbnails/<slug>.jpg`; `GET /stream` and `/download` return 302.
+
+Three real integration bugs surfaced (not caught by the faked/Testcontainers tests) and were fixed:
+
+1. **Worker boot race:** the worker validated the JPA schema before the API ran Flyway → added `depends_on: api (service_healthy)` so the schema exists first.
+2. **Missing `ObjectMapper` bean:** the worker has no web starter → `FfmpegVideoAnalyzer` now creates its own `ObjectMapper` instead of injecting one.
+3. **Worker pulled API use cases:** scanning `application.video` dragged in `InitiateUploadUseCase` (needs `SlugGenerator`, absent in the worker) → removed `application.video` from the worker's component scan (`ProcessVideoUseCase` is provided via `WorkerBeans`).

@@ -17,7 +17,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication(
     scanBasePackages = {
       "com.streamtube.worker",
-      "com.streamtube.application.video",
       "com.streamtube.infrastructure.storage",
       "com.streamtube.infrastructure.messaging",
       "com.streamtube.infrastructure.persistence"

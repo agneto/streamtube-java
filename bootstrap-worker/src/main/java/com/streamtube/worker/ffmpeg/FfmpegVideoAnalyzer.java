@@ -17,11 +17,7 @@ public class FfmpegVideoAnalyzer implements VideoAnalyzer {
 
   private static final long TIMEOUT_SECONDS = 120;
 
-  private final ObjectMapper objectMapper;
-
-  public FfmpegVideoAnalyzer(ObjectMapper objectMapper) {
-    this.objectMapper = objectMapper;
-  }
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public ProbeResult probe(String inputUrl) {

@@ -62,6 +62,9 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      # The API owns the Flyway migrations; wait until it is healthy so the schema exists.
+      api:
+        condition: service_healthy
 
   db:
     image: postgres:17
