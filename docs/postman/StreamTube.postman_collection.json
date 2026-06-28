@@ -1,0 +1,308 @@
+{
+  "info": {
+    "name": "StreamTube (Java)",
+    "_postman_id": "b1a7e4f0-0000-4000-8000-streamtube0001",
+    "description": "Coleção da API StreamTube (Java/Spring Boot). Fluxo: register -> pegar token no Mailpit -> confirm -> login -> initiate upload -> PUT no MinIO -> complete-upload -> info/stream/download.\n\nVariáveis (aba Variables): baseUrl, mailpitUrl, email, password, accessToken, refreshToken, confirmToken, resetToken, videoId, slug, uploadUrl.\n\nA autenticação Bearer é herdada da coleção ({{accessToken}}); requests públicas usam 'No Auth'.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "mailpitUrl", "value": "http://localhost:8025" },
+    { "key": "email", "value": "teste@exemplo.com" },
+    { "key": "password", "value": "senha12345" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "confirmToken", "value": "" },
+    { "key": "resetToken", "value": "" },
+    { "key": "videoId", "value": "" },
+    { "key": "slug", "value": "" },
+    { "key": "uploadUrl", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1. Register",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Gera um e-mail único a cada execução (comente para usar um fixo).",
+                  "pm.collectionVariables.set('email', 'teste-' + Date.now() + '@exemplo.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "console.log('Registrado:', pm.collectionVariables.get('email'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "2. Pegar token de confirmação (Mailpit)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const email = pm.collectionVariables.get('email');",
+                  "const data = pm.response.json();",
+                  "pm.test('Achou e-mail no Mailpit', () => data.messages && data.messages.length > 0);",
+                  "const id = data.messages[0].ID;",
+                  "pm.sendRequest(pm.collectionVariables.get('mailpitUrl') + '/api/v1/message/' + id + '/raw', (err, res) => {",
+                  "  if (err) { console.error(err); return; }",
+                  "  let raw = res.text().replace(/=\\r\\n/g, '').replace(/=\\n/g, '').replace(/=3D/g, '=');",
+                  "  const m = raw.match(/token=([A-Za-z0-9._-]+)/);",
+                  "  if (m) { pm.collectionVariables.set('confirmToken', m[1]); console.log('confirmToken set'); }",
+                  "  else { console.error('Token não encontrado no corpo do e-mail'); }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{mailpitUrl}}/api/v1/search?query=to:{{email}}",
+              "host": ["{{mailpitUrl}}"],
+              "path": ["api", "v1", "search"],
+              "query": [{ "key": "query", "value": "to:{{email}}" }]
+            }
+          }
+        },
+        {
+          "name": "3. Confirm Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/confirm-email?token={{confirmToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "confirm-email"],
+              "query": [{ "key": "token", "value": "{{confirmToken}}" }]
+            }
+          }
+        },
+        {
+          "name": "4. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', j.access_token);",
+                  "pm.collectionVariables.set('refreshToken', j.refresh_token);",
+                  "console.log('Tokens salvos.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "5. Me (autenticado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "6. Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', j.access_token);",
+                  "pm.collectionVariables.set('refreshToken', j.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          }
+        },
+        {
+          "name": "7. Resend confirmation",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/resend-confirmation", "host": ["{{baseUrl}}"], "path": ["auth", "resend-confirmation"] }
+          }
+        },
+        {
+          "name": "8. Forgot password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"] }
+          }
+        },
+        {
+          "name": "9. Reset password (precisa do resetToken do Mailpit)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"novaSenha12345\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"] }
+          }
+        },
+        {
+          "name": "10. Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Videos",
+      "item": [
+        {
+          "name": "1. Initiate upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('videoId', j.id);",
+                  "pm.collectionVariables.set('slug', j.slug);",
+                  "pm.collectionVariables.set('uploadUrl', j.uploadUrl);",
+                  "console.log('uploadUrl salvo. Agora rode \"2. Upload file (PUT no MinIO)\".');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Meu primeiro vídeo\"\n}" },
+            "url": { "raw": "{{baseUrl}}/videos", "host": ["{{baseUrl}}"], "path": ["videos"] }
+          }
+        },
+        {
+          "name": "2. Upload file (PUT no MinIO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('Upload OK (200/204)', () => [200, 204].includes(pm.response.code));"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "file", "file": { "src": "" } },
+            "url": { "raw": "{{uploadUrl}}", "host": ["{{uploadUrl}}"] },
+            "description": "Selecione o arquivo de vídeo na aba Body -> binary -> Select File. A URL já vem assinada (NÃO use Authorization aqui)."
+          }
+        },
+        {
+          "name": "3. Complete upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/videos/{{videoId}}/complete-upload", "host": ["{{baseUrl}}"], "path": ["videos", "{{videoId}}", "complete-upload"] }
+          }
+        },
+        {
+          "name": "4. Get info (acompanhar status)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/videos/{{slug}}", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}"] },
+            "description": "Repita até status == READY (QUEUED -> PROCESSING -> READY)."
+          }
+        },
+        {
+          "name": "5. Stream (302)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/videos/{{slug}}/stream", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}", "stream"] },
+            "description": "Retorna 302 com Location apontando para o MinIO. Para VER o 302, desligue 'Automatically follow redirects' em Settings."
+          }
+        },
+        {
+          "name": "6. Download (302)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/videos/{{slug}}/download", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}", "download"] }
+          }
+        }
+      ]
+    }
+  ]
+}

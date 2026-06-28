@@ -297,6 +297,21 @@ curl -L "http://localhost:8080/videos/$SLUG/download" -o baixado.mp4
 
 ## 7. Testando com Postman
 
+> **Atalho:** já existe uma coleção pronta em `docs/postman/`. No Postman,
+> *Import* → arraste os dois arquivos:
+> - `docs/postman/StreamTube.postman_collection.json` (requests + scripts que
+>   capturam tokens automaticamente)
+> - `docs/postman/StreamTube.postman_environment.json` (variáveis; selecione o
+>   environment "StreamTube Local" no canto superior direito)
+>
+> Depois é só rodar, em ordem, **Auth → 1..4** (o Register gera um e-mail único, o
+> "2. Pegar token" lê o Mailpit e salva o `confirmToken`, o Login salva os tokens) e
+> então **Videos → 1..6** (no "2. Upload file", selecione o arquivo em Body → binary).
+> Para ver o 302 em stream/download, desligue "Automatically follow redirects" em
+> *Settings*.
+
+Se preferir montar do zero a partir da especificação:
+
 1. **Importe a OpenAPI:** no Postman, *Import* → *Link* →
    `http://localhost:8080/v3/api-docs`. Ele gera a coleção com todos os endpoints.
 2. **Variáveis de ambiente:** crie um Environment com `baseUrl = http://localhost:8080`
