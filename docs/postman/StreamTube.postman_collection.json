@@ -301,6 +301,28 @@
             "header": [],
             "url": { "raw": "{{baseUrl}}/videos/{{slug}}/download", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}", "download"] }
           }
+        },
+        {
+          "name": "7. Rename (PATCH, dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('título atualizado', () => pm.response.json().title === 'Título editado via Postman');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Título editado via Postman\"\n}" },
+            "url": { "raw": "{{baseUrl}}/videos/{{videoId}}", "host": ["{{baseUrl}}"], "path": ["videos", "{{videoId}}"] },
+            "description": "Renomeia o vídeo (somente o dono). Usa {{videoId}} salvo pelo 'Initiate upload'. Autenticação Bearer herdada da coleção."
+          }
         }
       ]
     }
