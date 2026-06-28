@@ -66,7 +66,9 @@ framework/persistence annotations.
 
 **Recommendation:** **Option A** — the whole point of the request is Clean Architecture; pay the mapping cost (with MapStruct) to keep the domain pure.
 
-**Decision:** A (Strict layering — pure `domain`, `application` use cases over ports, `infrastructure` adapters with separate JPA persistence models + MapStruct mappers, `web` presentation)
+**Decision:** A (Strict layering — pure `domain`, `application` use cases over ports, `infrastructure` adapters with separate JPA persistence models + hand-written mappers, `web` presentation).
+
+**Implementation notes (Phase 02):** the `domain` module stays 100% framework-free. The `application` module uses Spring stereotypes (`@Service`/`@Transactional`) purely for wiring/transaction boundaries — no web or persistence dependencies. Mappers are hand-written (MapStruct was considered but dropped to keep the build dependency-light and predictable).
 
 ---
 
@@ -82,9 +84,9 @@ framework/persistence annotations.
 - **Pros:** Faster incremental builds, concise DSL.
 - **Cons:** Steeper learning curve; more variability across versions.
 
-**Recommendation:** **Option A (Maven)** — most conventional and best-documented; build speed is a non-issue at this project size.
+**Recommendation:** Either is fine at this size. Maven is the most conventional; Gradle (Kotlin DSL) offers faster incremental builds, a concise DSL, and a typed version catalog.
 
-**Decision:** A (Maven, multi-module — see TD-10 for the worker module split)
+**Decision:** **B (Gradle, Kotlin DSL, multi-module)** — chosen by the maintainer. Uses a `gradle/libs.versions.toml` version catalog and the Gradle wrapper; see TD-10 for the module split.
 
 ---
 
@@ -183,6 +185,10 @@ verification and password reset token flows.
 
 **Decision:** A (Spring Security 6 + jjwt; stateless access JWT via a `OncePerRequestFilter`; persisted hashed refresh tokens with `family`/`jti`, rotation, reuse detection, and grace period mirroring the NestJS implementation; global default-protected endpoints with explicit public allowlist)
 
+**Implementation notes (Phase 02):**
+- **Access token** = HS256 JWT (subject = userId, `email` claim). **Refresh token** = opaque 256-bit random secret stored only as a SHA-256 hash (not a JWT). This is simpler and equally secure: a forged/leaked-hash token cannot be reversed, and lookup is by hash. Verification tokens (email confirm / password reset) use the same opaque-secret + hash scheme.
+- **Grace-period behavior:** a revoked token presented within the 10s window is treated as a benign retry and rotated normally (same family); presented past the window it is reuse → the whole family is revoked. (Returning the exact already-issued token isn't possible since only hashes are stored — this adaptation preserves the security property while tolerating client races.)
+
 ---
 
 ## TD-08: Password Hashing
@@ -234,8 +240,8 @@ separate container/process consuming the queue.
 
 **Options:**
 
-### Option A: Separate Maven module / Spring Boot app (`worker`) consuming RabbitMQ
-- Multi-module Maven: `domain`, `application`, `infrastructure`, `bootstrap-api`, `bootstrap-worker`. The worker app has no web server; it wires the RabbitMQ listener, JPA, and storage, and shells out to FFmpeg via `ProcessBuilder`.
+### Option A: Separate Gradle module / Spring Boot app (`worker`) consuming RabbitMQ
+- Multi-module Gradle: `domain`, `application`, `infrastructure`, `bootstrap-api`, `bootstrap-worker`. The worker app has no web server; it wires the RabbitMQ listener, JPA, and storage, and shells out to FFmpeg via `ProcessBuilder`.
 - **Pros:** Matches the target architecture; isolates CPU-heavy FFmpeg from the API; independently scalable; FFmpeg installed only in the worker image.
 - **Cons:** One more module + Dockerfile.
 
@@ -294,7 +300,7 @@ separate container/process consuming the queue.
 - **Integration** (`*IT` / `*IntegrationTest`) — real Postgres/RabbitMQ/MinIO via **Testcontainers**; repositories, storage adapter, queue round-trips.
 - **E2E** (`*E2ETest`) — full app via `@SpringBootTest(webEnvironment = RANDOM_PORT)` + **MockMvc**/**RestAssured**, real test DB; auth flows and video endpoints end-to-end.
 
-Definition of Done per phase: relevant suite green, full suite green, `mvn -q verify` (compile + tests) exits 0, and static analysis/format check passes (Spotless + Checkstyle).
+Definition of Done per phase: relevant suite green, full suite green, `./gradlew build` (compile + tests) exits 0, and static analysis/format check passes (Spotless).
 
 ---
 
@@ -304,7 +310,7 @@ Definition of Done per phase: relevant suite green, full suite green, `mvn -q ve
 |----|-------|----------|
 | TD-01 | Language & framework | Java 21 LTS + Spring Boot 3.3.x |
 | TD-02 | Architecture | Strict Clean Architecture (pure domain, use cases over ports, infra adapters + MapStruct, web presentation) |
-| TD-03 | Build tool | Maven (multi-module) |
+| TD-03 | Build tool | Gradle (Kotlin DSL, multi-module, version catalog) |
 | TD-04 | Persistence | Spring Data JPA + Hibernate, persistence models separate from domain |
 | TD-05 | Migrations | Flyway (SQL-first) |
 | TD-06 | Message queue | RabbitMQ (Spring AMQP) — retry/backoff + DLQ |
