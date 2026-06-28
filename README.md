@@ -28,11 +28,28 @@ for the full rationale (options, trade-offs, decision per topic).
 
 | Phase | Capability | Status |
 |-------|-----------|--------|
-| 01 | Base config, Docker Compose infra, health, Flyway | planned |
-| 02 | Auth & account (register, login, JWT refresh rotation, email verification, password reset) | planned |
-| 03 | Video upload (presigned), processing worker (ffprobe + thumbnail), streaming/download | planned |
+| 01 | Base config, Docker Compose infra, health, Flyway | done |
+| 02 | Auth & account (register, login, JWT refresh rotation, email verification, password reset) | done |
+| 03 | Video upload (presigned), processing worker (ffprobe + thumbnail), streaming/download | done |
 
 Phase 04+ (video/channel management) is out of scope, matching the reference backend.
+
+### Endpoints
+
+- **Auth:** `POST /auth/register`, `GET /auth/confirm-email`, `POST /auth/resend-confirmation`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/logout`, `GET /auth/me`
+- **Videos:** `POST /videos`, `POST /videos/{id}/complete-upload`, `GET /videos/{slug}`, `GET /videos/{slug}/stream` (302), `GET /videos/{slug}/download` (302)
+
+### Running
+
+```bash
+docker compose up -d --build       # api + worker + postgres + rabbitmq + minio + mailpit
+curl http://localhost:8080/        # {"service":"streamtube-api","status":"ok"}
+# Swagger UI: http://localhost:8080/swagger-ui.html
+# RabbitMQ UI: http://localhost:15673  | MinIO console: http://localhost:9001 | Mailpit: http://localhost:8025
+```
+
+The `video-worker` consumes the `video.processing` queue, runs FFprobe/FFmpeg, and
+updates the video to `READY` (thumbnail + duration + metadata) or `ERROR`.
 
 ## Workflow
 

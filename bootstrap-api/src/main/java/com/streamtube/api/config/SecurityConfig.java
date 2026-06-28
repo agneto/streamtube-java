@@ -49,6 +49,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/auth/confirm-email")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/videos/**")
+                    .permitAll()
                     .anyRequest()
                     .authenticated())
         .exceptionHandling(

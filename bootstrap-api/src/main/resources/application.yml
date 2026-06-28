@@ -30,6 +30,18 @@ spring:
           auth: false
           starttls:
             enable: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:streamtube}
+    password: ${RABBITMQ_PASSWORD:streamtube}
+
+storage:
+  endpoint: ${STORAGE_ENDPOINT:http://minio:9000}
+  public-url: ${STORAGE_PUBLIC_URL:http://localhost:9000}
+  bucket: ${STORAGE_BUCKET:streamtube-videos}
+  access-key: ${STORAGE_ACCESS_KEY:streamtube}
+  secret-key: ${STORAGE_SECRET_KEY:streamtube_secret}
 
 auth:
   jwt:
