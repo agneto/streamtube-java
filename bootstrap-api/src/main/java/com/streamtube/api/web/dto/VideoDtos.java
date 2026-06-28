@@ -12,6 +12,8 @@ public final class VideoDtos {
 
   public record CreateVideoRequest(@NotBlank @Size(max = 255) String title) {}
 
+  public record UpdateVideoRequest(@NotBlank @Size(max = 255) String title) {}
+
   public record InitiateUploadResponse(UUID id, String slug, String uploadUrl) {}
 
   public record VideoInfoResponse(

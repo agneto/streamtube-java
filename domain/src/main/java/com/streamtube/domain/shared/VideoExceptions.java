@@ -34,4 +34,10 @@ public final class VideoExceptions {
       super("VIDEO_NOT_READY", "Video is not ready for playback");
     }
   }
+
+  public static final class InvalidVideoTitleException extends DomainException {
+    public InvalidVideoTitleException() {
+      super("INVALID_VIDEO_TITLE", "Video title must be between 1 and 255 characters");
+    }
+  }
 }
