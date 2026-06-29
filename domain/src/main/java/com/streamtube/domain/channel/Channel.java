@@ -1,5 +1,7 @@
 package com.streamtube.domain.channel;
 
+import com.streamtube.domain.shared.ChannelExceptions;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -35,6 +37,18 @@ public class Channel {
   public static Channel createForUser(
       UUID id, UUID userId, String name, String nickname, Instant now) {
     return new Channel(id, userId, name, nickname, null, now, now);
+  }
+
+  /**
+   * Updates the channel description. The description is optional: {@code null} or blank clears it.
+   * Domain invariant: at most 5000 characters.
+   */
+  public void updateDescription(String newDescription, Instant now) {
+    if (newDescription != null && newDescription.length() > 5000) {
+      throw new ChannelExceptions.InvalidChannelDescriptionException();
+    }
+    this.description = newDescription;
+    this.updatedAt = now;
   }
 
   public UUID id() {
