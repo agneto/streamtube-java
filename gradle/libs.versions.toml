@@ -1,7 +1,7 @@
 [versions]
-springBoot = "3.3.5"
-springDependencyManagement = "1.1.6"
-springdoc = "2.6.0"
+springBoot = "3.5.3"
+springDependencyManagement = "1.1.7"
+springdoc = "2.8.6"
 spotless = "6.25.0"
 jjwt = "0.12.6"
 bouncycastle = "1.78.1"

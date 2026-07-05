@@ -35,6 +35,9 @@ subprojects {
 
     dependencies {
         "testImplementation"("org.springframework.boot:spring-boot-starter-test")
+        // Boot 3.5 ships JUnit 5.12+, which requires the platform launcher on the test runtime
+        // classpath to stay version-aligned with the engine (Gradle no longer injects it).
+        "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
     }
 
     tasks.withType<Test> {
