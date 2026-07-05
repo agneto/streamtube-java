@@ -38,4 +38,9 @@ public class RefreshTokenRepositoryAdapter implements RefreshTokenRepository {
   public void revokeFamily(UUID family, Instant now) {
     jpa.revokeFamily(family, now);
   }
+
+  @Override
+  public void deleteAllForUser(UUID userId) {
+    jpa.deleteAllForUser(userId);
+  }
 }
