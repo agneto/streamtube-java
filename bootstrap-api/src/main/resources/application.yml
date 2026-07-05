@@ -1,5 +1,12 @@
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    remoteip:
+      # Behind a reverse proxy/LB, resolve the real client IP from X-Forwarded-For — but only
+      # when the direct peer is a trusted proxy (default internal-proxies: private/loopback
+      # ranges). Public clients cannot spoof it. Rate limiting keys on getRemoteAddr().
+      remote-ip-header: x-forwarded-for
+      protocol-header: x-forwarded-proto
 
 spring:
   application:
