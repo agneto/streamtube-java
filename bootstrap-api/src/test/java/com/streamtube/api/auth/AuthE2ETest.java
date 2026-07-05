@@ -94,6 +94,38 @@ class AuthE2ETest {
   }
 
   @Test
+  void resetPasswordRevokesExistingSessions() throws Exception {
+    String email = "reset@test.com";
+    register(email, "password123");
+    mockMvc
+        .perform(get("/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
+        .andExpect(status().isNoContent());
+    JsonNode tokens = login(email, "password123");
+    String refresh = tokens.get("refresh_token").asText();
+
+    mockMvc
+        .perform(jsonPost("/auth/forgot-password", Map.of("email", email)))
+        .andExpect(status().isNoContent());
+    String resetToken = mail.resetTokens.get(email);
+    assertThat(resetToken).isNotNull();
+
+    mockMvc
+        .perform(
+            jsonPost(
+                "/auth/reset-password", Map.of("token", resetToken, "password", "newPassword456")))
+        .andExpect(status().isNoContent());
+
+    // the pre-reset session must be dead: its refresh token was deleted (INVALID_TOKEN)
+    mockMvc
+        .perform(jsonPost("/auth/refresh", Map.of("refresh_token", refresh)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+
+    // and the new password works
+    login(email, "newPassword456");
+  }
+
+  @Test
   void meWithoutTokenIsUnauthorized() throws Exception {
     mockMvc.perform(get("/auth/me")).andExpect(status().isUnauthorized());
   }
