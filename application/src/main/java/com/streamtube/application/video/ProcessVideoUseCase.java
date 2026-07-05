@@ -15,6 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Not a component: it depends on the worker-only {@code VideoAnalyzer} port, so it is wired as a
  * bean in the worker app only (the API never instantiates it).
+ *
+ * <p>{@link #execute} is deliberately <em>not</em> transactional: FFprobe/FFmpeg can run for
+ * minutes, and a transaction spanning them would pin a DB connection for the whole run (and keep
+ * the intermediate PROCESSING state invisible until the final commit). Each status write is a
+ * single repository save that commits in its own short transaction, so PROCESSING becomes visible
+ * immediately and no connection is held during the external work.
  */
 public class ProcessVideoUseCase {
 
@@ -34,16 +40,18 @@ public class ProcessVideoUseCase {
     this.clock = clock;
   }
 
-  @Transactional
   public void execute(UUID videoId) {
     Video video = videoRepository.findById(videoId).orElseThrow(VideoNotFoundException::new);
     if (video.isReady()) {
       return; // idempotent on retry
     }
 
+    // Commits right away: PROCESSING is visible while the (long) analysis below runs. A crash
+    // mid-analysis leaves the video PROCESSING; redelivery re-enters here and re-marks it.
     video.markProcessing(clock.instant());
     videoRepository.save(video);
 
+    // Long-running external work — no transaction (and no DB connection) held during this block.
     String inputUrl = storage.presignInternal(video.storageKey());
     ProbeResult probe = analyzer.probe(inputUrl);
     byte[] thumbnail = analyzer.extractThumbnail(inputUrl);
