@@ -126,8 +126,29 @@ class AuthE2ETest {
   }
 
   @Test
-  void meWithoutTokenIsUnauthorized() throws Exception {
-    mockMvc.perform(get("/auth/me")).andExpect(status().isUnauthorized());
+  void meWithoutTokenIsUnauthorizedWithErrorEnvelope() throws Exception {
+    mockMvc
+        .perform(get("/auth/me"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.statusCode").value(401))
+        .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+        .andExpect(jsonPath("$.path").value("/auth/me"));
+  }
+
+  @Test
+  void malformedJsonIsBadRequestWithErrorEnvelope() throws Exception {
+    mockMvc
+        .perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content("{not-json"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+  }
+
+  @Test
+  void unknownPublicPathIsNotFoundWithErrorEnvelope() throws Exception {
+    mockMvc
+        .perform(get("/videos/a/b/c"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("NOT_FOUND"));
   }
 
   @Test

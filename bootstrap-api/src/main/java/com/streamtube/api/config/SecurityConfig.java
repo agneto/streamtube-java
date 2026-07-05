@@ -2,15 +2,14 @@ package com.streamtube.api.config;
 
 import com.streamtube.api.security.JwtAuthenticationFilter;
 import com.streamtube.api.security.RateLimitingFilter;
+import com.streamtube.api.security.SecurityErrorResponses;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /** Stateless security: default-protected endpoints with an explicit public allowlist. */
@@ -20,11 +19,15 @@ public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final RateLimitingFilter rateLimitingFilter;
+  private final SecurityErrorResponses securityErrorResponses;
 
   public SecurityConfig(
-      JwtAuthenticationFilter jwtAuthenticationFilter, RateLimitingFilter rateLimitingFilter) {
+      JwtAuthenticationFilter jwtAuthenticationFilter,
+      RateLimitingFilter rateLimitingFilter,
+      SecurityErrorResponses securityErrorResponses) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.rateLimitingFilter = rateLimitingFilter;
+    this.securityErrorResponses = securityErrorResponses;
   }
 
   @Bean
@@ -54,7 +57,9 @@ public class SecurityConfig {
                     .anyRequest()
                     .authenticated())
         .exceptionHandling(
-            e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            e ->
+                e.authenticationEntryPoint(securityErrorResponses)
+                    .accessDeniedHandler(securityErrorResponses))
         .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
