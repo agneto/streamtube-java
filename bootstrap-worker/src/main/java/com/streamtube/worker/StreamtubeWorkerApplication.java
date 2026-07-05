@@ -19,7 +19,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
       "com.streamtube.worker",
       "com.streamtube.infrastructure.storage",
       "com.streamtube.infrastructure.messaging",
-      "com.streamtube.infrastructure.persistence"
+      "com.streamtube.infrastructure.persistence",
+      "com.streamtube.infrastructure.transaction"
     })
 @EntityScan("com.streamtube.infrastructure.persistence.entity")
 @EnableJpaRepositories("com.streamtube.infrastructure.persistence.repository")
