@@ -14,4 +14,11 @@ public interface RefreshTokenRepository {
   List<RefreshToken> findByFamily(UUID family);
 
   void revokeFamily(UUID family, java.time.Instant now);
+
+  /**
+   * Deletes every refresh token of the user. Deletion (not revocation) is deliberate: a revoked
+   * token still rotates within the reuse-detection grace period, which would let a stolen token
+   * survive a password reset.
+   */
+  void deleteAllForUser(UUID userId);
 }
