@@ -16,6 +16,8 @@ import com.streamtube.domain.video.VideoStatus;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,12 +58,39 @@ class ProcessVideoUseCaseTest {
     when(analyzer.probe("http://minio/internal")).thenReturn(new ProbeResult(12.5, "{\"ok\":1}"));
     when(analyzer.extractThumbnail("http://minio/internal")).thenReturn(new byte[] {1, 2, 3});
 
+    // record the status persisted by each save, in order
+    List<VideoStatus> savedStatuses = new ArrayList<>();
+    when(videos.save(any()))
+        .thenAnswer(
+            inv -> {
+              Video saved = inv.getArgument(0);
+              savedStatuses.add(saved.status());
+              return saved;
+            });
+
     useCase.execute(videoId);
 
-    assertThat(video.status()).isEqualTo(VideoStatus.READY);
+    // PROCESSING is persisted before the analysis result: it must be visible while ffmpeg runs
+    assertThat(savedStatuses).containsExactly(VideoStatus.PROCESSING, VideoStatus.READY);
     assertThat(video.durationSeconds()).isEqualTo(12.5);
     assertThat(video.thumbnailKey()).isEqualTo("thumbnails/slug123.jpg");
     verify(storage).putObject(eq("thumbnails/slug123.jpg"), any(), eq("image/jpeg"));
+  }
+
+  @Test
+  void reprocessesVideoStuckInProcessingOnRedelivery() {
+    Video stuck =
+        new Video(
+            videoId, UUID.randomUUID(), "T", "slug123", VideoStatus.PROCESSING, "videos/slug123",
+            null, null, null, null, NOW, NOW);
+    when(videos.findById(videoId)).thenReturn(Optional.of(stuck));
+    when(storage.presignInternal("videos/slug123")).thenReturn("http://minio/internal");
+    when(analyzer.probe("http://minio/internal")).thenReturn(new ProbeResult(5.0, "{}"));
+    when(analyzer.extractThumbnail("http://minio/internal")).thenReturn(new byte[] {1});
+
+    useCase.execute(videoId);
+
+    assertThat(stuck.status()).isEqualTo(VideoStatus.READY);
   }
 
   @Test
