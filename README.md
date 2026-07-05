@@ -51,6 +51,13 @@ curl http://localhost:8080/        # {"service":"streamtube-api","status":"ok"}
 The `video-worker` consumes the `video.processing` queue, runs FFprobe/FFmpeg, and
 updates the video to `READY` (thumbnail + duration + metadata) or `ERROR`.
 
+### Production profile
+
+Run with `SPRING_PROFILES_ACTIVE=prod` outside local dev. The prod profile has **no fallback
+values** for credentials/secrets (`DB_*`, `RABBITMQ_*`, `STORAGE_*`, `JWT_SECRET`, `MAIL_*`,
+`APP_BASE_URL`): a missing variable — or a `JWT_SECRET` still set to the committed dev value —
+aborts startup instead of silently running with dev defaults.
+
 ## Workflow
 
 Development follows the same pipeline as the reference project:

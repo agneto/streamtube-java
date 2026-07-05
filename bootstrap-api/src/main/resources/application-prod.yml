@@ -1,0 +1,26 @@
+# Production profile: credentials, secrets and outward-facing URLs have NO fallback values here.
+# A missing environment variable fails startup fast (unresolved placeholder) instead of silently
+# running with the insecure dev defaults from application.yml.
+spring:
+  datasource:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  rabbitmq:
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+
+storage:
+  endpoint: ${STORAGE_ENDPOINT}
+  public-url: ${STORAGE_PUBLIC_URL}
+  access-key: ${STORAGE_ACCESS_KEY}
+  secret-key: ${STORAGE_SECRET_KEY}
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET}
+
+app:
+  base-url: ${APP_BASE_URL}
