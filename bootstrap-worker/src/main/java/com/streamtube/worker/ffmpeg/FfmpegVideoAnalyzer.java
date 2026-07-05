@@ -70,7 +70,8 @@ public class FfmpegVideoAnalyzer implements VideoAnalyzer {
     }
   }
 
-  private byte[] run(List<String> command, Path workingDir) {
+  /** Runs the external process; overridable in tests to avoid requiring ffmpeg binaries. */
+  protected byte[] run(List<String> command, Path workingDir) {
     try {
       ProcessBuilder pb = new ProcessBuilder(command);
       if (workingDir != null) {
