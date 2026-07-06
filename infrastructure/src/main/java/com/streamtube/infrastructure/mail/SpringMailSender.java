@@ -46,14 +46,14 @@ public class SpringMailSender implements MailSender {
   @Override
   public void sendConfirmationEmail(String to, String rawToken) {
     Context ctx = new Context();
-    ctx.setVariable("link", baseUrl + "/auth/confirm-email?token=" + rawToken);
+    ctx.setVariable("link", baseUrl + "/api/v1/auth/confirm-email?token=" + rawToken);
     send(to, "Confirm your StreamTube account", "email/confirmation", ctx);
   }
 
   @Override
   public void sendPasswordResetEmail(String to, String rawToken) {
     Context ctx = new Context();
-    ctx.setVariable("link", baseUrl + "/auth/reset-password?token=" + rawToken);
+    ctx.setVariable("link", baseUrl + "/api/v1/auth/reset-password?token=" + rawToken);
     send(to, "Reset your StreamTube password", "email/password-reset", ctx);
   }
 

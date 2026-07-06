@@ -13,11 +13,11 @@ Os diagramas deste documento também existem como arquivos independentes em
 1. [As camadas e quem mora em cada uma](#1-as-camadas)
 2. [Visão geral do fluxo](#2-visão-geral)
 3. [Passo 0 — Cadastro, confirmação e login](#3-passo-0)
-4. [Passo 1 — Iniciar o upload (`POST /videos`)](#4-passo-1)
+4. [Passo 1 — Iniciar o upload (`POST /api/v1/videos`)](#4-passo-1)
 5. [Passo 2 — Upload direto ao storage (PUT presignado)](#5-passo-2)
-6. [Passo 3 — Confirmar o upload (`POST /videos/{id}/complete-upload`)](#6-passo-3)
+6. [Passo 3 — Confirmar o upload (`POST /api/v1/videos/{id}/complete-upload`)](#6-passo-3)
 7. [Passo 4 — Processamento no worker (RabbitMQ + FFmpeg)](#7-passo-4)
-8. [Passo 5 — Assistir (`GET /videos/{slug}` e `/stream`)](#8-passo-5)
+8. [Passo 5 — Assistir (`GET /api/v1/videos/{slug}` e `/stream`)](#8-passo-5)
 9. [Ciclo de vida do status e caminhos de erro](#9-status-e-erros)
 
 ---
@@ -78,21 +78,21 @@ sequenceDiagram
     participant W as bootstrap-worker
 
     Note over C,API: Passo 0 — conta
-    C->>API: POST /auth/register
+    C->>API: POST /api/v1/auth/register
     API->>DB: user + channel + token de confirmação
-    C->>API: GET /auth/confirm-email?token=...
-    C->>API: POST /auth/login
+    C->>API: GET /api/v1/auth/confirm-email?token=...
+    C->>API: POST /api/v1/auth/login
     API-->>C: access_token (JWT) + refresh_token
 
     Note over C,S3: Passos 1–2 — upload
-    C->>API: POST /videos {title, sizeBytes, contentType}
+    C->>API: POST /api/v1/videos {title, sizeBytes, contentType}
     API->>DB: INSERT video (PENDING_UPLOAD)
     API-->>C: 201 {id, slug, uploadUrl presignada}
     C->>S3: PUT uploadUrl (bytes do vídeo)
     S3-->>C: 200
 
     Note over C,MQ: Passo 3 — confirmação
-    C->>API: POST /videos/{id}/complete-upload
+    C->>API: POST /api/v1/videos/{id}/complete-upload
     API->>S3: HEAD object (existe?)
     API->>DB: UPDATE video → QUEUED (commit)
     API->>MQ: publish {videoId} (após o commit)
@@ -106,7 +106,7 @@ sequenceDiagram
     W->>DB: UPDATE → READY (duração, thumbnail, metadata)
 
     Note over C,S3: Passo 5 — consumo
-    C->>API: GET /videos/{slug}/stream
+    C->>API: GET /api/v1/videos/{slug}/stream
     API-->>C: 302 Location: URL presignada
     C->>S3: GET (streaming direto)
 ```
@@ -115,7 +115,7 @@ sequenceDiagram
 
 ## 3. Passo 0 — Cadastro, confirmação e login <a id="3-passo-0"></a>
 
-### 3.1 `POST /auth/register`
+### 3.1 `POST /api/v1/auth/register`
 
 ```json
 { "email": "maria@exemplo.com", "password": "senhaSegura123" }
@@ -123,7 +123,7 @@ sequenceDiagram
 
 **Trajeto da requisição, na ordem em que as camadas são atravessadas:**
 
-1. **`RateLimitingFilter`** (bootstrap-api/security) — `/auth/register` está na lista de rotas
+1. **`RateLimitingFilter`** (bootstrap-api/security) — `/api/v1/auth/register` está na lista de rotas
    limitadas: token bucket de 10 req/min por IP (o IP real vem do `X-Forwarded-For` via
    RemoteIp valve do Tomcat, apenas quando o peer é proxy confiável). Estourou → `429` com
    `Retry-After`.
@@ -190,13 +190,13 @@ private void send(String to, String subject, String template, Context context) {
 }
 ```
 
-### 3.2 `GET /auth/confirm-email?token=...`
+### 3.2 `GET /api/v1/auth/confirm-email?token=...`
 
 O link chega por e-mail (Mailpit em dev). `ConfirmEmailUseCase` faz hash do token cru, busca por
 `(hash, EMAIL_CONFIRMATION)`, valida consumo/expiração, marca `user.confirm(now)` e consome o
 token — single-use. Token desconhecido/consumido → `400 INVALID_TOKEN`; expirado → `410 TOKEN_EXPIRED`.
 
-### 3.3 `POST /auth/login`
+### 3.3 `POST /api/v1/auth/login`
 
 `LoginUseCase` valida credenciais (Argon2 `matches`), exige e-mail confirmado (senão
 `403 EMAIL_NOT_CONFIRMED`) e emite o par de tokens:
@@ -222,10 +222,10 @@ Daqui em diante o cliente envia `Authorization: Bearer <access_token>` em toda r
 
 ---
 
-## 4. Passo 1 — Iniciar o upload: `POST /videos` <a id="4-passo-1"></a>
+## 4. Passo 1 — Iniciar o upload: `POST /api/v1/videos` <a id="4-passo-1"></a>
 
 ```http
-POST /videos
+POST /api/v1/videos
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 Content-Type: application/json
 
@@ -243,7 +243,7 @@ sequenceDiagram
     participant VR as VideoRepository (port→JPA)
     participant SP as StoragePort (port→S3Adapter)
 
-    C->>F: POST /videos (Bearer JWT)
+    C->>F: POST /api/v1/videos (Bearer JWT)
     F->>F: verifica assinatura/expiração,<br/>popula SecurityContext
     F->>VC: segue a cadeia
     VC->>UC: execute(userId, title, sizeBytes, contentType)
@@ -390,7 +390,7 @@ Regras impostas pela assinatura (sem nenhum código nosso executando):
 
 ---
 
-## 6. Passo 3 — Confirmar o upload: `POST /videos/{id}/complete-upload` <a id="6-passo-3"></a>
+## 6. Passo 3 — Confirmar o upload: `POST /api/v1/videos/{id}/complete-upload` <a id="6-passo-3"></a>
 
 O storage não avisa a API quando o PUT termina — quem avisa é o cliente. A API então **verifica**
 no storage antes de acreditar.
@@ -562,9 +562,9 @@ thumbnail_key = 'thumbnails/TKNJAGcikRY.jpg', metadata = '{ ...json do ffprobe..
 
 ## 8. Passo 5 — Assistir <a id="8-passo-5"></a>
 
-Rotas públicas (`GET /videos/**` no allowlist — não exigem login).
+Rotas públicas (`GET /api/v1/videos/**` no allowlist — não exigem login).
 
-**`GET /videos/{slug}`** → `GetVideoInfoUseCase` → info pública com a thumbnail já presignada:
+**`GET /api/v1/videos/{slug}`** → `GetVideoInfoUseCase` → info pública com a thumbnail já presignada:
 
 ```json
 { "id": "9be8654e-...", "slug": "TKNJAGcikRY", "title": "Meu primeiro vídeo",
@@ -573,7 +573,7 @@ Rotas públicas (`GET /videos/**` no allowlist — não exigem login).
   "channelId": "...", "createdAt": "2026-07-06T..." }
 ```
 
-**`GET /videos/{slug}/stream`** → redirect para o storage; o player segue o 302 e faz streaming
+**`GET /api/v1/videos/{slug}/stream`** → redirect para o storage; o player segue o 302 e faz streaming
 (com range requests) direto do MinIO/S3 — de novo, bytes fora da API:
 
 ```java
@@ -595,7 +595,7 @@ if (!video.isReady()) {
 return storage.presignStream(video.storageKey());
 ```
 
-`GET /videos/{slug}/download` é idêntico, mas assina com
+`GET /api/v1/videos/{slug}/download` é idêntico, mas assina com
 `response-content-disposition: attachment; filename="..."` para forçar download.
 
 ---
@@ -604,7 +604,7 @@ return storage.presignStream(video.storageKey());
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING_UPLOAD: POST /videos
+    [*] --> PENDING_UPLOAD: POST /api/v1/videos
     PENDING_UPLOAD --> QUEUED: complete-upload<br/>(objeto existe no storage)
     QUEUED --> PROCESSING: worker consome<br/>(commit imediato)
     PROCESSING --> READY: ffprobe + thumbnail OK

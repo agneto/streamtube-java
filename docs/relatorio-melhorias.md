@@ -5,7 +5,7 @@
 
 ## Status da implementação (atualizado em 2026-07-06)
 
-Os **12 itens do roadmap foram implementados e mergeados em `dev`** (PRs #7 a #25). Cada achado abaixo traz seu status individual; a tabela do roadmap (seção 7) referencia os PRs. Pendências remanescentes são todas 🟢/🟡 de baixa prioridade: 1.6, 1.8, 2.5, 2.6, 4.3, 5.3 (parcial), 6.2–6.4.
+Os **12 itens do roadmap foram implementados e mergeados em `dev`** (PRs #7 a #25). Cada achado abaixo traz seu status individual; a tabela do roadmap (seção 7) referencia os PRs. Segunda rodada (2026-07-06, branches `feature/small-hardening-batch`, `feature/db-refinements`, `build/gradle-wrapper-8.14`, `feature/api-v1-versioning`) resolveu 1.6, 1.8, 2.5, 2.6, 4.3, 5.3, 6.2, 6.3 e 6.4. Restam apenas os parciais de 2.7 (política de reprocesso de ERROR) e 4.2 (ErrorProne/SpotBugs, googleJavaFormat).
 
 ## Avaliação geral
 
@@ -57,7 +57,7 @@ Não há nenhuma configuração de CORS no projeto. Qualquer frontend em navegad
 
 ### 🟡 1.6 Registro tem condição de corrida no e-mail duplicado
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/small-hardening-batch`)
 
 `RegisterUserUseCase` faz `existsByEmail` + `save`. Dois registros simultâneos do mesmo e-mail passam do check e um deles estoura a constraint UNIQUE como `DataIntegrityViolationException` → **500** em vez de 409. Capturar a violação de constraint e traduzir para `EmailAlreadyRegisteredException` (mesmo padrão para nickname e slug).
 
@@ -69,7 +69,7 @@ Não há nenhuma configuração de CORS no projeto. Qualquer frontend em navegad
 
 ### 🟢 1.8 Falha de verificação JWT é silenciosa
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/small-hardening-batch`)
 
 `JwtTokenService.verify` engole qualquer `RuntimeException` sem log. Um `debug`/`trace` do motivo (expirado vs. assinatura inválida) ajuda muito em investigação de incidentes sem vazar informação ao cliente.
 
@@ -114,13 +114,13 @@ Em `CompleteUploadUseCase`, `publisher.publish(video.id())` roda **dentro** do `
 
 ### 🟡 2.5 Mapeamento código→status é frágil
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/small-hardening-batch`)
 
 O `switch` de strings em `GlobalExceptionHandler.statusFor` exige lembrar de atualizar o handler a cada nova exceção de domínio — esquecido, vira 400 genérico silenciosamente. Alternativa: `DomainException` expõe um enum/categoria (`NOT_FOUND`, `CONFLICT`, `FORBIDDEN`...) que o handler traduz mecanicamente, mantendo o domínio sem dependência de HTTP.
 
 ### 🟡 2.6 DLQ sem tratamento de falha do próprio handler
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/small-hardening-batch`)
 
 Se `processVideo.markFailed` lançar exceção no listener da DLQ, com `default-requeue-rejected: false` e sem DLX na DLQ a mensagem é **descartada** e o vídeo fica preso em `QUEUED`/`PROCESSING` para sempre. Vale: (a) capturar exceções no handler da DLQ e logar com alerta; (b) um job de reconciliação que marca como `ERROR` vídeos presos em estado intermediário há mais de X horas.
 
@@ -182,7 +182,7 @@ Spotless só formata (imports/whitespace). Sugestões de baixo custo e alto reto
 
 ### 🟢 4.3 Wrapper Gradle desatualizado
 
-> **Status:** ⏳ Pendente (wrapper segue em 8.10.2)
+> **Status:** ✅ Resolvido (branch `build/gradle-wrapper-8.14` — 8.14.5, parallel + build cache)
 
 Wrapper em 8.10.2 (out/2024). Atualizar para a linha 8.x atual melhora o suporte a Java 21+ e cache de configuração (`org.gradle.configuration-cache=true` em `gradle.properties`, hoje ausente).
 
@@ -204,7 +204,7 @@ Só 4 dos ~18 use cases têm teste unitário (`RefreshTokens`, `ProcessVideo`, `
 
 ### 🟢 5.3 Filtros e handler sem testes
 
-> **Status:** 🟡 Parcial (RateLimitingFilter no PR #15 e GlobalExceptionHandler no PR #18; JwtAuthenticationFilter pendente)
+> **Status:** ✅ Resolvido (PRs #15/#18 + `JwtAuthenticationFilter` na branch `feature/small-hardening-batch`)
 
 `RateLimitingFilter` (estourar o limite → 429), `JwtAuthenticationFilter` (token inválido/expirado) e `GlobalExceptionHandler` (mapa código→status) são pequenos e críticos — bons candidatos a testes de slice (`@WebMvcTest`).
 
@@ -220,19 +220,19 @@ Três formatos de erro convivem: `ErrorEnvelope` (handler), corpo vazio no 401 (
 
 ### 🟢 6.2 Sem versionamento de API
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/api-v1-versioning`)
 
 Endpoints em `/auth`, `/videos` sem prefixo de versão. Adotar `/api/v1/...` agora é barato; depois de ter clientes, não é.
 
 ### 🟢 6.3 `metadata` como `text` em vez de `jsonb`
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/db-refinements`)
 
 `videos.metadata` guarda o JSON do ffprobe como `text`. Em PostgreSQL, `jsonb` permite consultas futuras (codec, resolução) e valida o JSON na escrita.
 
 ### 🟢 6.4 Índices para consultas de tokens
 
-> **Status:** ⏳ Pendente
+> **Status:** ✅ Resolvido (branch `feature/db-refinements`)
 
 `verification_tokens.token_hash` tem índice não-único, mas o lookup é sempre `hash + type` — um índice composto `(token_hash, type)` (ou UNIQUE em `token_hash`) casa melhor com a query. `refresh_tokens` está correto (UNIQUE em `token_hash`).
 

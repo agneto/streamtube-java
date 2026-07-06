@@ -139,25 +139,25 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 
 | Método | Caminho | Autenticação | O que faz |
 |--------|---------|--------------|-----------|
-| POST | `/auth/register` | pública | Cria usuário + canal, envia e-mail de confirmação |
-| GET | `/auth/confirm-email?token=...` | pública | Confirma o e-mail |
-| POST | `/auth/resend-confirmation` | pública | Reenvia o e-mail de confirmação |
-| POST | `/auth/login` | pública | Devolve `access_token` + `refresh_token` |
-| POST | `/auth/refresh` | pública | Rotaciona o refresh token |
-| POST | `/auth/forgot-password` | pública | Envia e-mail de reset (sempre 204) |
-| POST | `/auth/reset-password` | pública | Troca a senha usando o token |
-| POST | `/auth/logout` | autenticada | Revoga o refresh token enviado |
-| GET | `/auth/me` | autenticada | Dados do usuário logado + canal |
+| POST | `/api/v1/auth/register` | pública | Cria usuário + canal, envia e-mail de confirmação |
+| GET | `/api/v1/auth/confirm-email?token=...` | pública | Confirma o e-mail |
+| POST | `/api/v1/auth/resend-confirmation` | pública | Reenvia o e-mail de confirmação |
+| POST | `/api/v1/auth/login` | pública | Devolve `access_token` + `refresh_token` |
+| POST | `/api/v1/auth/refresh` | pública | Rotaciona o refresh token |
+| POST | `/api/v1/auth/forgot-password` | pública | Envia e-mail de reset (sempre 204) |
+| POST | `/api/v1/auth/reset-password` | pública | Troca a senha usando o token |
+| POST | `/api/v1/auth/logout` | autenticada | Revoga o refresh token enviado |
+| GET | `/api/v1/auth/me` | autenticada | Dados do usuário logado + canal |
 
-### Vídeos (`/videos`)
+### Vídeos (`/api/v1/videos`)
 
 | Método | Caminho | Autenticação | O que faz |
 |--------|---------|--------------|-----------|
-| POST | `/videos` | autenticada | Inicia upload — cria o vídeo e devolve a URL pré-assinada (PUT) |
-| POST | `/videos/{id}/complete-upload` | autenticada (dono) | Confirma o upload e enfileira o processamento |
-| GET | `/videos/{slug}` | pública | Informações do vídeo (inclui URL da thumbnail) |
-| GET | `/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
-| GET | `/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
+| POST | `/api/v1/videos` | autenticada | Inicia upload — cria o vídeo e devolve a URL pré-assinada (PUT) |
+| POST | `/api/v1/videos/{id}/complete-upload` | autenticada (dono) | Confirma o upload e enfileira o processamento |
+| GET | `/api/v1/videos/{slug}` | pública | Informações do vídeo (inclui URL da thumbnail) |
+| GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
+| GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
 > Os campos de token no JSON usam *snake_case*: `access_token`, `refresh_token`,
 > `token_type`, `expires_in` (para bater com o contrato do backend de referência).
@@ -172,7 +172,7 @@ enviar um vídeo → ver ele ficar pronto → tocar.
 ### 6.1. Cadastrar um usuário
 
 ```bash
-curl -X POST http://localhost:8080/auth/register \
+curl -X POST http://localhost:8080/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"email":"teste@exemplo.com","password":"senha12345"}'
 # -> 201 {"id":"...","email":"teste@exemplo.com"}
@@ -195,14 +195,14 @@ echo "TOKEN=$TOKEN"
 ### 6.3. Confirmar o e-mail
 
 ```bash
-curl "http://localhost:8080/auth/confirm-email?token=$TOKEN"
+curl "http://localhost:8080/api/v1/auth/confirm-email?token=$TOKEN"
 # -> 204 (sem corpo)
 ```
 
 ### 6.4. Login
 
 ```bash
-curl -X POST http://localhost:8080/auth/login \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"teste@exemplo.com","password":"senha12345"}'
 # -> 200 {"access_token":"eyJ...","token_type":"Bearer","expires_in":900,"refresh_token":"..."}
@@ -217,7 +217,7 @@ JWT="cole_aqui_o_access_token"
 ### 6.5. Ver o usuário logado (rota protegida)
 
 ```bash
-curl http://localhost:8080/auth/me -H "Authorization: Bearer $JWT"
+curl http://localhost:8080/api/v1/auth/me -H "Authorization: Bearer $JWT"
 # -> 200 {"id":"...","email":"...","confirmed":true,"channel":{"id":"...","nickname":"...","name":"..."}}
 ```
 
@@ -317,10 +317,10 @@ Se preferir montar do zero a partir da especificação:
 2. **Variáveis de ambiente:** crie um Environment com `baseUrl = http://localhost:8080`
    e (depois do login) `accessToken` e `refreshToken`.
 3. **Fluxo sugerido:**
-   - `POST {{baseUrl}}/auth/register` (body JSON com `email` e `password`).
+   - `POST {{baseUrl}}/api/v1/auth/register` (body JSON com `email` e `password`).
    - Pegue o token no Mailpit (http://localhost:8025) e chame
-     `GET {{baseUrl}}/auth/confirm-email?token=...`.
-   - `POST {{baseUrl}}/auth/login` → copie `access_token` para a variável `accessToken`.
+     `GET {{baseUrl}}/api/v1/auth/confirm-email?token=...`.
+   - `POST {{baseUrl}}/api/v1/auth/login` → copie `access_token` para a variável `accessToken`.
    - Nas rotas protegidas, aba **Authorization** → tipo **Bearer Token** →
      `{{accessToken}}`.
    - `POST {{baseUrl}}/videos` → copie a `uploadUrl`.
@@ -416,7 +416,7 @@ http://localhost:8025.
 | `complete-upload` retorna 409 | O arquivo não está no storage | Faça o `PUT` (passo 6.7) antes do complete-upload. |
 | Vídeo vai para `ERROR` | FFmpeg/FFprobe falhou no worker | `docker compose logs worker`; confira se o arquivo é um vídeo válido. |
 | `/stream` ou `/download` retorna 422 | Vídeo ainda não está `READY` | Espere o processamento terminar. |
-| 401 numa rota protegida | Sem header `Authorization: Bearer <token>` ou token expirado (15 min) | Faça login de novo ou use `/auth/refresh`. |
+| 401 numa rota protegida | Sem header `Authorization: Bearer <token>` ou token expirado (15 min) | Faça login de novo ou use `/api/v1/auth/refresh`. |
 | `SignatureDoesNotMatch` ao dar `PUT` no MinIO | URL pré-assinada inconsistente (host/credenciais) | Use exatamente a `uploadUrl` da resposta; confira que `STORAGE_PUBLIC_URL` aponta para `http://localhost:9000`. |
 | `./gradlew` reclama de `JAVA_HOME` inválido | `JAVA_HOME` apontando para um JDK que não existe | `export JAVA_HOME=<caminho de um JDK 21 válido>` |
 | Worker reinicia/cai no boot | Subiu antes de a API rodar as migrations | Já tratado: o worker `depends_on` a API saudável. Se rodar o worker isolado, garanta que o schema existe. |

@@ -49,7 +49,7 @@ class ChannelE2ETest {
 
     mockMvc
         .perform(
-            patch("/channels/me")
+            patch("/api/v1/channels/me")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("description", "Minha nova bio"))))
@@ -68,7 +68,7 @@ class ChannelE2ETest {
 
     mockMvc
         .perform(
-            patch("/channels/me")
+            patch("/api/v1/channels/me")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))
@@ -80,7 +80,7 @@ class ChannelE2ETest {
   void updateRequiresAuth() throws Exception {
     mockMvc
         .perform(
-            patch("/channels/me")
+            patch("/api/v1/channels/me")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("description", "x"))))
         .andExpect(status().isUnauthorized());
@@ -90,15 +90,15 @@ class ChannelE2ETest {
 
   private String registerConfirmLogin(String email) throws Exception {
     mockMvc
-        .perform(jsonPost("/auth/register", Map.of("email", email, "password", "password123")))
+        .perform(jsonPost("/api/v1/auth/register", Map.of("email", email, "password", "password123")))
         .andExpect(status().isCreated());
     mockMvc
-        .perform(get("/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
+        .perform(get("/api/v1/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
         .andExpect(status().isNoContent());
     JsonNode tokens =
         readJson(
             mockMvc
-                .perform(jsonPost("/auth/login", Map.of("email", email, "password", "password123")))
+                .perform(jsonPost("/api/v1/auth/login", Map.of("email", email, "password", "password123")))
                 .andExpect(status().isOk()));
     return tokens.get("access_token").asText();
   }

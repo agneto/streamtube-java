@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/channels")
+@RequestMapping("/api/v1/channels")
 @Tag(name = "channels", description = "Channel management")
 public class ChannelsController {
 
