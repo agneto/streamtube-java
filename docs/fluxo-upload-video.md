@@ -5,6 +5,8 @@ e-mail, faz login, envia um vídeo e o assiste. Para cada passo: **qual endpoint
 camadas a chamada atravessa, quais classes participam e o trecho de código relevante**.
 
 Reflete o código em `dev` após os PRs #7–#25 (relatório de melhorias implementado).
+Os diagramas deste documento também existem como arquivos independentes em
+[`diagrams/`](diagrams/README.md).
 
 ## Sumário
 
