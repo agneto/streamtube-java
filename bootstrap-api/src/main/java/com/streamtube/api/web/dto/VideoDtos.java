@@ -1,6 +1,8 @@
 package com.streamtube.api.web.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.UUID;
@@ -10,7 +12,11 @@ public final class VideoDtos {
 
   private VideoDtos() {}
 
-  public record CreateVideoRequest(@NotBlank @Size(max = 255) String title) {}
+  /** The declared size/type are signed into the upload URL; storage rejects mismatches. */
+  public record CreateVideoRequest(
+      @NotBlank @Size(max = 255) String title,
+      @NotNull @Positive Long sizeBytes,
+      @NotBlank String contentType) {}
 
   public record UpdateVideoRequest(@NotBlank @Size(max = 255) String title) {}
 

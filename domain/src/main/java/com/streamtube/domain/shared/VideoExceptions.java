@@ -40,4 +40,16 @@ public final class VideoExceptions {
       super("INVALID_VIDEO_TITLE", "Video title must be between 1 and 255 characters");
     }
   }
+
+  public static final class InvalidUploadSizeException extends DomainException {
+    public InvalidUploadSizeException() {
+      super("INVALID_UPLOAD_SIZE", "Upload size must be positive and within the allowed limit");
+    }
+  }
+
+  public static final class UnsupportedVideoTypeException extends DomainException {
+    public UnsupportedVideoTypeException() {
+      super("UNSUPPORTED_VIDEO_TYPE", "Only video content types are accepted");
+    }
+  }
 }
