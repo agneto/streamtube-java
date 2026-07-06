@@ -24,3 +24,8 @@ auth:
 
 app:
   base-url: ${APP_BASE_URL}
+# Structured JSON logs (ECS) for aggregation; dev keeps the human-readable format.
+logging:
+  structured:
+    format:
+      console: ecs

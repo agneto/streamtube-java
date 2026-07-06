@@ -1,3 +1,7 @@
+# Small embedded web server only for health/metrics (the worker itself is queue-driven).
+server:
+  port: ${SERVER_PORT:8081}
+
 spring:
   application:
     name: streamtube-worker
@@ -32,3 +36,12 @@ storage:
   bucket: ${STORAGE_BUCKET:streamtube-videos}
   access-key: ${STORAGE_ACCESS_KEY:streamtube}
   secret-key: ${STORAGE_SECRET_KEY:streamtube_secret}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
