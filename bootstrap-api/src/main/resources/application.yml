@@ -65,6 +65,12 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
   mail:
     from: ${MAIL_FROM:no-reply@streamtube.local}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+upload:
+  # Maximum declared upload size; also signed into the presigned PUT URL.
+  max-size-bytes: ${UPLOAD_MAX_SIZE_BYTES:2147483648}
 
 management:
   endpoints:

@@ -2,7 +2,9 @@ package com.streamtube.api.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -149,6 +151,27 @@ class AuthE2ETest {
         .perform(get("/videos/a/b/c"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+  }
+
+  @Test
+  void corsPreflightAllowsConfiguredOrigin() throws Exception {
+    mockMvc
+        .perform(
+            options("/auth/login")
+                .header("Origin", "http://localhost:3000")
+                .header("Access-Control-Request-Method", "POST"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"));
+  }
+
+  @Test
+  void corsPreflightRejectsUnknownOrigin() throws Exception {
+    mockMvc
+        .perform(
+            options("/auth/login")
+                .header("Origin", "http://evil.example.com")
+                .header("Access-Control-Request-Method", "POST"))
+        .andExpect(status().isForbidden());
   }
 
   @Test

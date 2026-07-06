@@ -63,7 +63,9 @@ public class VideosController {
   public InitiateUploadResponse initiate(
       @AuthenticationPrincipal AuthenticatedUser principal,
       @Valid @RequestBody CreateVideoRequest request) {
-    InitiateUploadResult result = initiateUpload.execute(principal.id(), request.title());
+    InitiateUploadResult result =
+        initiateUpload.execute(
+            principal.id(), request.title(), request.sizeBytes(), request.contentType());
     return new InitiateUploadResponse(result.id(), result.slug(), result.uploadUrl());
   }
 

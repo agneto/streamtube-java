@@ -12,6 +12,8 @@ import com.streamtube.application.port.out.StoragePort;
 import com.streamtube.application.video.result.InitiateUploadResult;
 import com.streamtube.domain.channel.Channel;
 import com.streamtube.domain.channel.ChannelRepository;
+import com.streamtube.domain.shared.VideoExceptions.InvalidUploadSizeException;
+import com.streamtube.domain.shared.VideoExceptions.UnsupportedVideoTypeException;
 import com.streamtube.domain.video.Video;
 import com.streamtube.domain.video.VideoRepository;
 import com.streamtube.domain.video.VideoStatus;
@@ -28,6 +30,7 @@ import org.mockito.Mockito;
 class InitiateUploadUseCaseTest {
 
   private static final Instant NOW = Instant.parse("2026-01-01T12:00:00Z");
+  private static final long MAX_SIZE = 1_000_000L;
 
   private VideoRepository videos;
   private ChannelRepository channels;
@@ -45,7 +48,7 @@ class InitiateUploadUseCaseTest {
     slugGenerator = Mockito.mock(SlugGenerator.class);
     useCase =
         new InitiateUploadUseCase(
-            videos, channels, storage, slugGenerator, Clock.fixed(NOW, ZoneOffset.UTC));
+            videos, channels, storage, slugGenerator, Clock.fixed(NOW, ZoneOffset.UTC), MAX_SIZE);
 
     userId = UUID.randomUUID();
     channelId = UUID.randomUUID();
@@ -58,9 +61,10 @@ class InitiateUploadUseCaseTest {
   void createsDraftVideoAndReturnsPresignedUploadUrl() {
     when(slugGenerator.generate()).thenReturn("slug123");
     when(videos.existsBySlug("slug123")).thenReturn(false);
-    when(storage.presignUpload("videos/slug123")).thenReturn("http://upload-url");
+    when(storage.presignUpload("videos/slug123", 1000L, "video/mp4"))
+        .thenReturn("http://upload-url");
 
-    InitiateUploadResult result = useCase.execute(userId, "My Video");
+    InitiateUploadResult result = useCase.execute(userId, "My Video", 1000L, "video/mp4");
 
     assertThat(result.slug()).isEqualTo("slug123");
     assertThat(result.uploadUrl()).isEqualTo("http://upload-url");
@@ -73,13 +77,34 @@ class InitiateUploadUseCaseTest {
   }
 
   @Test
+  void rejectsSizeAboveTheLimit() {
+    assertThatThrownBy(() -> useCase.execute(userId, "My Video", MAX_SIZE + 1, "video/mp4"))
+        .isInstanceOf(InvalidUploadSizeException.class);
+    verify(videos, never()).save(any());
+  }
+
+  @Test
+  void rejectsNonPositiveSize() {
+    assertThatThrownBy(() -> useCase.execute(userId, "My Video", 0L, "video/mp4"))
+        .isInstanceOf(InvalidUploadSizeException.class);
+    verify(videos, never()).save(any());
+  }
+
+  @Test
+  void rejectsNonVideoContentType() {
+    assertThatThrownBy(() -> useCase.execute(userId, "My Video", 1000L, "application/pdf"))
+        .isInstanceOf(UnsupportedVideoTypeException.class);
+    verify(videos, never()).save(any());
+  }
+
+  @Test
   void retriesSlugGenerationOnCollision() {
     when(slugGenerator.generate()).thenReturn("taken", "free");
     when(videos.existsBySlug("taken")).thenReturn(true);
     when(videos.existsBySlug("free")).thenReturn(false);
-    when(storage.presignUpload("videos/free")).thenReturn("http://upload-url");
+    when(storage.presignUpload("videos/free", 1000L, "video/mp4")).thenReturn("http://upload-url");
 
-    InitiateUploadResult result = useCase.execute(userId, "My Video");
+    InitiateUploadResult result = useCase.execute(userId, "My Video", 1000L, "video/mp4");
 
     assertThat(result.slug()).isEqualTo("free");
   }
@@ -89,7 +114,7 @@ class InitiateUploadUseCaseTest {
     when(slugGenerator.generate()).thenReturn("always-taken");
     when(videos.existsBySlug("always-taken")).thenReturn(true);
 
-    assertThatThrownBy(() -> useCase.execute(userId, "My Video"))
+    assertThatThrownBy(() -> useCase.execute(userId, "My Video", 1000L, "video/mp4"))
         .isInstanceOf(IllegalStateException.class);
     verify(videos, never()).save(any());
   }
@@ -98,7 +123,7 @@ class InitiateUploadUseCaseTest {
   void failsWhenUserHasNoChannel() {
     when(channels.findByUserId(userId)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> useCase.execute(userId, "My Video"))
+    assertThatThrownBy(() -> useCase.execute(userId, "My Video", 1000L, "video/mp4"))
         .isInstanceOf(IllegalStateException.class);
     verify(videos, never()).save(any());
   }

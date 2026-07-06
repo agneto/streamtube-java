@@ -64,13 +64,15 @@ class S3StorageAdapterIntegrationTest {
   @Test
   void presignedUploadThenStreamRoundTrips() throws Exception {
     String key = "videos/round-trip";
-    String uploadUrl = adapter.presignUpload(key);
+    byte[] body = "video-bytes".getBytes();
+    String uploadUrl = adapter.presignUpload(key, body.length, "video/mp4");
 
     HttpClient http = HttpClient.newHttpClient();
     HttpResponse<Void> put =
         http.send(
             HttpRequest.newBuilder(URI.create(uploadUrl))
-                .PUT(HttpRequest.BodyPublishers.ofByteArray("video-bytes".getBytes()))
+                .header("Content-Type", "video/mp4")
+                .PUT(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build(),
             HttpResponse.BodyHandlers.discarding());
     assertThat(put.statusCode()).isBetween(200, 204);
@@ -90,5 +92,35 @@ class S3StorageAdapterIntegrationTest {
   void presignedDownloadHasAttachmentDisposition() {
     String url = adapter.presignDownload("videos/round-trip", "My Video.mp4");
     assertThat(url).contains("response-content-disposition");
+  }
+
+  /** The declared size/type are signed: storage must reject an upload that differs from them. */
+  @Test
+  void presignedUploadRejectsMismatchedSizeAndType() throws Exception {
+    String key = "videos/mismatch";
+    byte[] declared = "0123456789".getBytes(); // signed for 10 bytes, video/mp4
+    String uploadUrl = adapter.presignUpload(key, declared.length, "video/mp4");
+
+    HttpClient http = HttpClient.newHttpClient();
+
+    HttpResponse<Void> wrongType =
+        http.send(
+            HttpRequest.newBuilder(URI.create(uploadUrl))
+                .header("Content-Type", "application/pdf")
+                .PUT(HttpRequest.BodyPublishers.ofByteArray(declared))
+                .build(),
+            HttpResponse.BodyHandlers.discarding());
+    assertThat(wrongType.statusCode()).isEqualTo(403);
+
+    HttpResponse<Void> wrongSize =
+        http.send(
+            HttpRequest.newBuilder(URI.create(uploadUrl))
+                .header("Content-Type", "video/mp4")
+                .PUT(HttpRequest.BodyPublishers.ofByteArray("way-more-bytes-than-declared".getBytes()))
+                .build(),
+            HttpResponse.BodyHandlers.discarding());
+    assertThat(wrongSize.statusCode()).isEqualTo(403);
+
+    assertThat(adapter.objectExists(key)).isFalse();
   }
 }
