@@ -42,14 +42,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
   private static final Set<String> LIMITED_POST_PATHS =
       Set.of(
-          "/auth/login",
-          "/auth/register",
-          "/auth/forgot-password",
-          "/auth/reset-password",
-          "/auth/resend-confirmation",
-          "/auth/refresh");
+          "/api/v1/auth/login",
+          "/api/v1/auth/register",
+          "/api/v1/auth/forgot-password",
+          "/api/v1/auth/reset-password",
+          "/api/v1/auth/resend-confirmation",
+          "/api/v1/auth/refresh");
 
-  private static final Set<String> LIMITED_GET_PATHS = Set.of("/auth/confirm-email");
+  private static final Set<String> LIMITED_GET_PATHS = Set.of("/api/v1/auth/confirm-email");
 
   private final Cache<String, Bucket> buckets =
       Caffeine.newBuilder()

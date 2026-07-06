@@ -58,7 +58,7 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] }
           }
         },
         {
@@ -109,9 +109,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/auth/confirm-email?token={{confirmToken}}",
+              "raw": "{{baseUrl}}/api/v1/auth/confirm-email?token={{confirmToken}}",
               "host": ["{{baseUrl}}"],
-              "path": ["auth", "confirm-email"],
+              "path": ["api", "v1", "auth", "confirm-email"],
               "query": [{ "key": "token", "value": "{{confirmToken}}" }]
             }
           }
@@ -138,7 +138,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
           }
         },
         {
@@ -146,7 +146,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me"] }
           }
         },
         {
@@ -170,7 +170,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] }
           }
         },
         {
@@ -180,7 +180,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/auth/resend-confirmation", "host": ["{{baseUrl}}"], "path": ["auth", "resend-confirmation"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/resend-confirmation", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "resend-confirmation"] }
           }
         },
         {
@@ -190,7 +190,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "forgot-password"] }
           }
         },
         {
@@ -200,7 +200,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"novaSenha12345\"\n}" },
-            "url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "reset-password"] }
           }
         },
         {
@@ -209,7 +209,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" },
-            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] }
           }
         }
       ]
@@ -239,7 +239,7 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"title\": \"Meu primeiro vídeo\",\n  \"sizeBytes\": 1048576,\n  \"contentType\": \"video/mp4\"\n}" },
-            "url": { "raw": "{{baseUrl}}/videos", "host": ["{{baseUrl}}"], "path": ["videos"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/videos", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos"] }
           }
         },
         {
@@ -270,7 +270,7 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/videos/{{videoId}}/complete-upload", "host": ["{{baseUrl}}"], "path": ["videos", "{{videoId}}", "complete-upload"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/complete-upload", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "complete-upload"] }
           }
         },
         {
@@ -279,7 +279,7 @@
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/videos/{{slug}}", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}"] },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}"] },
             "description": "Repita até status == READY (QUEUED -> PROCESSING -> READY)."
           }
         },
@@ -289,7 +289,7 @@
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/videos/{{slug}}/stream", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}", "stream"] },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/stream", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "stream"] },
             "description": "Retorna 302 com Location apontando para o MinIO. Para VER o 302, desligue 'Automatically follow redirects' em Settings."
           }
         },
@@ -299,7 +299,7 @@
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/videos/{{slug}}/download", "host": ["{{baseUrl}}"], "path": ["videos", "{{slug}}", "download"] }
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/download", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "download"] }
           }
         },
         {
@@ -320,7 +320,7 @@
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"title\": \"Título editado via Postman\"\n}" },
-            "url": { "raw": "{{baseUrl}}/videos/{{videoId}}", "host": ["{{baseUrl}}"], "path": ["videos", "{{videoId}}"] },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}"] },
             "description": "Renomeia o vídeo (somente o dono). Usa {{videoId}} salvo pelo 'Initiate upload'. Autenticação Bearer herdada da coleção."
           }
         }

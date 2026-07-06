@@ -6,7 +6,7 @@ pública enquanto a análise roda.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING_UPLOAD: POST /videos
+    [*] --> PENDING_UPLOAD: POST /api/v1/videos
     PENDING_UPLOAD --> QUEUED: complete-upload<br/>(objeto existe no storage)
     QUEUED --> PROCESSING: worker consome<br/>(commit imediato)
     PROCESSING --> READY: ffprobe + thumbnail OK

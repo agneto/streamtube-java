@@ -53,7 +53,7 @@ class AuthE2ETest {
     assertThat(token).isNotNull();
 
     mockMvc
-        .perform(get("/auth/confirm-email").param("token", token))
+        .perform(get("/api/v1/auth/confirm-email").param("token", token))
         .andExpect(status().isNoContent());
 
     JsonNode tokens = login(email, "password123");
@@ -61,7 +61,7 @@ class AuthE2ETest {
     assertThat(tokens.get("token_type").asText()).isEqualTo("Bearer");
 
     mockMvc
-        .perform(get("/auth/me").header("Authorization", "Bearer " + access))
+        .perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + access))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value(email))
         .andExpect(jsonPath("$.confirmed").value(true))
@@ -73,7 +73,7 @@ class AuthE2ETest {
     String email = "unconfirmed@test.com";
     register(email, "password123").andExpect(status().isCreated());
     mockMvc
-        .perform(jsonPost("/auth/login", Map.of("email", email, "password", "password123")))
+        .perform(jsonPost("/api/v1/auth/login", Map.of("email", email, "password", "password123")))
         .andExpect(status().isForbidden());
   }
 
@@ -82,7 +82,7 @@ class AuthE2ETest {
     String email = "refresh@test.com";
     register(email, "password123");
     mockMvc
-        .perform(get("/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
+        .perform(get("/api/v1/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
         .andExpect(status().isNoContent());
     JsonNode tokens = login(email, "password123");
     String refresh = tokens.get("refresh_token").asText();
@@ -90,7 +90,7 @@ class AuthE2ETest {
     JsonNode rotated =
         readJson(
             mockMvc
-                .perform(jsonPost("/auth/refresh", Map.of("refresh_token", refresh)))
+                .perform(jsonPost("/api/v1/auth/refresh", Map.of("refresh_token", refresh)))
                 .andExpect(status().isOk()));
     assertThat(rotated.get("refresh_token").asText()).isNotEqualTo(refresh);
   }
@@ -100,13 +100,13 @@ class AuthE2ETest {
     String email = "reset@test.com";
     register(email, "password123");
     mockMvc
-        .perform(get("/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
+        .perform(get("/api/v1/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
         .andExpect(status().isNoContent());
     JsonNode tokens = login(email, "password123");
     String refresh = tokens.get("refresh_token").asText();
 
     mockMvc
-        .perform(jsonPost("/auth/forgot-password", Map.of("email", email)))
+        .perform(jsonPost("/api/v1/auth/forgot-password", Map.of("email", email)))
         .andExpect(status().isNoContent());
     String resetToken = mail.resetTokens.get(email);
     assertThat(resetToken).isNotNull();
@@ -114,12 +114,12 @@ class AuthE2ETest {
     mockMvc
         .perform(
             jsonPost(
-                "/auth/reset-password", Map.of("token", resetToken, "password", "newPassword456")))
+                "/api/v1/auth/reset-password", Map.of("token", resetToken, "password", "newPassword456")))
         .andExpect(status().isNoContent());
 
     // the pre-reset session must be dead: its refresh token was deleted (INVALID_TOKEN)
     mockMvc
-        .perform(jsonPost("/auth/refresh", Map.of("refresh_token", refresh)))
+        .perform(jsonPost("/api/v1/auth/refresh", Map.of("refresh_token", refresh)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
 
@@ -130,17 +130,17 @@ class AuthE2ETest {
   @Test
   void meWithoutTokenIsUnauthorizedWithErrorEnvelope() throws Exception {
     mockMvc
-        .perform(get("/auth/me"))
+        .perform(get("/api/v1/auth/me"))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.statusCode").value(401))
         .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
-        .andExpect(jsonPath("$.path").value("/auth/me"));
+        .andExpect(jsonPath("$.path").value("/api/v1/auth/me"));
   }
 
   @Test
   void malformedJsonIsBadRequestWithErrorEnvelope() throws Exception {
     mockMvc
-        .perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content("{not-json"))
+        .perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{not-json"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
   }
@@ -148,7 +148,7 @@ class AuthE2ETest {
   @Test
   void unknownPublicPathIsNotFoundWithErrorEnvelope() throws Exception {
     mockMvc
-        .perform(get("/videos/a/b/c"))
+        .perform(get("/api/v1/videos/a/b/c"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
   }
@@ -157,7 +157,7 @@ class AuthE2ETest {
   void corsPreflightAllowsConfiguredOrigin() throws Exception {
     mockMvc
         .perform(
-            options("/auth/login")
+            options("/api/v1/auth/login")
                 .header("Origin", "http://localhost:3000")
                 .header("Access-Control-Request-Method", "POST"))
         .andExpect(status().isOk())
@@ -168,7 +168,7 @@ class AuthE2ETest {
   void corsPreflightRejectsUnknownOrigin() throws Exception {
     mockMvc
         .perform(
-            options("/auth/login")
+            options("/api/v1/auth/login")
                 .header("Origin", "http://evil.example.com")
                 .header("Access-Control-Request-Method", "POST"))
         .andExpect(status().isForbidden());
@@ -184,13 +184,13 @@ class AuthE2ETest {
   // --- helpers ---
 
   private ResultActions register(String email, String pw) throws Exception {
-    return mockMvc.perform(jsonPost("/auth/register", Map.of("email", email, "password", pw)));
+    return mockMvc.perform(jsonPost("/api/v1/auth/register", Map.of("email", email, "password", pw)));
   }
 
   private JsonNode login(String email, String pw) throws Exception {
     return readJson(
         mockMvc
-            .perform(jsonPost("/auth/login", Map.of("email", email, "password", pw)))
+            .perform(jsonPost("/api/v1/auth/login", Map.of("email", email, "password", pw)))
             .andExpect(status().isOk()));
   }
 
