@@ -34,6 +34,16 @@ public class VideoProcessingListener {
   @RabbitListener(queues = VideoQueue.DLQ)
   public void onDeadLetter(VideoProcessingMessage message) {
     log.error("Video {} failed processing after retries; marking ERROR", message.videoId());
-    processVideo.markFailed(message.videoId(), "Processing failed after retries");
+    try {
+      processVideo.markFailed(message.videoId(), "Processing failed after retries");
+    } catch (Exception e) {
+      // The DLQ has no dead-letter of its own: throwing here would drop the message and leave
+      // the video stuck in QUEUED/PROCESSING forever with no trace. Log loudly instead —
+      // this line is the alert signal for manual reconciliation.
+      log.error(
+          "Failed to mark video {} as ERROR; it may be stuck in an intermediate status",
+          message.videoId(),
+          e);
+    }
   }
 }

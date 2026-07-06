@@ -10,12 +10,16 @@ import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /** Issues and verifies stateless HS256 JWT access tokens (jjwt). */
 @Component
 public class JwtTokenService implements AccessTokenService {
+
+  private static final Logger log = LoggerFactory.getLogger(JwtTokenService.class);
 
   private final SecretKey key;
   private final long accessTtlSeconds;
@@ -50,6 +54,9 @@ public class JwtTokenService implements AccessTokenService {
       String email = claims.get("email", String.class);
       return Optional.of(new AuthenticatedUser(userId, email));
     } catch (RuntimeException e) {
+      // Debug-level: expired vs. bad-signature matters when investigating auth incidents,
+      // but must not leak to clients nor flood production logs.
+      log.debug("JWT verification failed: {}: {}", e.getClass().getSimpleName(), e.getMessage());
       return Optional.empty();
     }
   }
