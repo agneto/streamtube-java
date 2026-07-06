@@ -1,12 +1,34 @@
 # --- build stage ---
-FROM gradle:8.10.2-jdk21 AS build
-WORKDIR /home/gradle/src
-COPY --chown=gradle:gradle . .
-RUN gradle :bootstrap-api:bootJar --no-daemon
+FROM eclipse-temurin:21-jdk AS build
+WORKDIR /src
+
+# Dependency layer: copy only the build scripts and resolve dependencies, so source-only
+# changes reuse this (expensive) layer instead of re-downloading everything.
+COPY gradlew ./
+COPY gradle/ gradle/
+COPY settings.gradle.kts build.gradle.kts ./
+COPY domain/build.gradle.kts domain/
+COPY application/build.gradle.kts application/
+COPY infrastructure/build.gradle.kts infrastructure/
+COPY bootstrap-api/build.gradle.kts bootstrap-api/
+COPY bootstrap-worker/build.gradle.kts bootstrap-worker/
+RUN ./gradlew :bootstrap-api:dependencies --no-daemon --quiet > /dev/null
+
+COPY . .
+# Layered jar: dependencies / loader / application extract into separate image layers,
+# so pulling a new build only transfers the application layer.
+RUN ./gradlew :bootstrap-api:bootJar --no-daemon \
+    && java -Djarmode=layertools -jar bootstrap-api/build/libs/streamtube-api.jar extract \
+       --destination /extracted
 
 # --- runtime stage ---
 FROM eclipse-temurin:21-jre
+RUN useradd --system --uid 1001 --user-group app
 WORKDIR /app
-COPY --from=build /home/gradle/src/bootstrap-api/build/libs/streamtube-api.jar app.jar
+COPY --from=build /extracted/dependencies/ ./
+COPY --from=build /extracted/spring-boot-loader/ ./
+COPY --from=build /extracted/snapshot-dependencies/ ./
+COPY --from=build /extracted/application/ ./
+USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "org.springframework.boot.loader.launch.JarLauncher"]
