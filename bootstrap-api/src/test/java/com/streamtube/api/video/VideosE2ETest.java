@@ -61,7 +61,7 @@ class VideosE2ETest {
                     post("/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("title", "My Video"))))
+                        .content(objectMapper.writeValueAsString(initiateBody("My Video"))))
                 .andExpect(status().isCreated()));
     String id = init.get("id").asText();
     String slug = init.get("slug").asText();
@@ -118,7 +118,7 @@ class VideosE2ETest {
                     post("/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("title", "Título antigo"))))
+                        .content(objectMapper.writeValueAsString(initiateBody("Título antigo"))))
                 .andExpect(status().isCreated()));
     String id = init.get("id").asText();
 
@@ -142,7 +142,7 @@ class VideosE2ETest {
                     post("/videos")
                         .header("Authorization", "Bearer " + owner)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("title", "Dono"))))
+                        .content(objectMapper.writeValueAsString(initiateBody("Dono"))))
                 .andExpect(status().isCreated()));
     String id = init.get("id").asText();
 
@@ -176,7 +176,7 @@ class VideosE2ETest {
                     post("/videos")
                         .header("Authorization", "Bearer " + owner)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("title", "Owned"))))
+                        .content(objectMapper.writeValueAsString(initiateBody("Owned"))))
                 .andExpect(status().isCreated()));
     String id = init.get("id").asText();
 
@@ -186,7 +186,44 @@ class VideosE2ETest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void initiateRejectsNonVideoContentType() throws Exception {
+    String token = registerConfirmLogin("wrong-type@test.com");
+    mockMvc
+        .perform(
+            post("/videos")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("title", "Doc", "sizeBytes", 1000, "contentType", "application/pdf"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("UNSUPPORTED_VIDEO_TYPE"));
+  }
+
+  @Test
+  void initiateRejectsOversizedUpload() throws Exception {
+    String token = registerConfirmLogin("too-big@test.com");
+    mockMvc
+        .perform(
+            post("/videos")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of(
+                            "title", "Huge",
+                            "sizeBytes", Long.MAX_VALUE,
+                            "contentType", "video/mp4"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_UPLOAD_SIZE"));
+  }
+
   // --- helpers ---
+
+  private Map<String, Object> initiateBody(String title) {
+    return Map.of("title", title, "sizeBytes", 1000, "contentType", "video/mp4");
+  }
 
   private void markReady(String slug) throws Exception {
     try (Connection c = dataSource.getConnection();
@@ -236,7 +273,7 @@ class VideosE2ETest {
 
   static class FakeStorage implements StoragePort {
     @Override
-    public String presignUpload(String key) {
+    public String presignUpload(String key, long contentLength, String contentType) {
       return "http://localhost:9000/" + key + "?upload&sig=x";
     }
 

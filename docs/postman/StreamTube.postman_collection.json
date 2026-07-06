@@ -238,7 +238,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Meu primeiro vídeo\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Meu primeiro vídeo\",\n  \"sizeBytes\": 1048576,\n  \"contentType\": \"video/mp4\"\n}" },
             "url": { "raw": "{{baseUrl}}/videos", "host": ["{{baseUrl}}"], "path": ["videos"] }
           }
         },

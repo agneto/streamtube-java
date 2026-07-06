@@ -71,8 +71,14 @@ public class S3StorageAdapter implements StoragePort {
   }
 
   @Override
-  public String presignUpload(String key) {
-    PutObjectRequest put = PutObjectRequest.builder().bucket(bucket).key(key).build();
+  public String presignUpload(String key, long contentLength, String contentType) {
+    PutObjectRequest put =
+        PutObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .contentLength(contentLength)
+            .contentType(contentType)
+            .build();
     PutObjectPresignRequest req =
         PutObjectPresignRequest.builder()
             .signatureDuration(UPLOAD_TTL)
