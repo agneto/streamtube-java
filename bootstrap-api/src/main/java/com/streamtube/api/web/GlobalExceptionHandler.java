@@ -1,11 +1,13 @@
 package com.streamtube.api.web;
 
 import com.streamtube.api.web.dto.ErrorEnvelope;
+import com.streamtube.domain.shared.DomainErrorType;
 import com.streamtube.domain.shared.DomainException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -32,8 +34,20 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(DomainException.class)
   public ResponseEntity<ErrorEnvelope> handleDomain(
       DomainException ex, HttpServletRequest request) {
-    HttpStatus status = statusFor(ex.code());
+    HttpStatus status = statusFor(ex.type());
     return ResponseEntity.status(status).body(envelope(status, ex.code(), ex.getMessage(), request));
+  }
+
+  /**
+   * Safety net for unique-constraint races (e.g. two simultaneous registrations passing the
+   * exists-check): a conflict must never surface as a 500.
+   */
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ErrorEnvelope> handleDataIntegrity(HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(
+            envelope(
+                HttpStatus.CONFLICT, "CONFLICT", "Resource already exists or conflicts", request));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -116,16 +130,16 @@ public class GlobalExceptionHandler {
                 request));
   }
 
-  private HttpStatus statusFor(String code) {
-    return switch (code) {
-      case "EMAIL_ALREADY_REGISTERED" -> HttpStatus.CONFLICT;
-      case "INVALID_CREDENTIALS", "TOKEN_REUSE_DETECTED" -> HttpStatus.UNAUTHORIZED;
-      case "EMAIL_NOT_CONFIRMED", "FORBIDDEN_VIDEO_ACCESS" -> HttpStatus.FORBIDDEN;
-      case "TOKEN_EXPIRED" -> HttpStatus.GONE;
-      case "USER_NOT_FOUND", "VIDEO_NOT_FOUND" -> HttpStatus.NOT_FOUND;
-      case "UPLOAD_NOT_COMPLETED" -> HttpStatus.CONFLICT;
-      case "VIDEO_STATUS_CONFLICT", "VIDEO_NOT_READY" -> HttpStatus.UNPROCESSABLE_ENTITY;
-      default -> HttpStatus.BAD_REQUEST;
+  /** Exhaustive by construction: a new DomainErrorType fails compilation until mapped here. */
+  private HttpStatus statusFor(DomainErrorType type) {
+    return switch (type) {
+      case VALIDATION -> HttpStatus.BAD_REQUEST;
+      case NOT_FOUND -> HttpStatus.NOT_FOUND;
+      case CONFLICT -> HttpStatus.CONFLICT;
+      case FORBIDDEN -> HttpStatus.FORBIDDEN;
+      case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+      case GONE -> HttpStatus.GONE;
+      case UNPROCESSABLE -> HttpStatus.UNPROCESSABLE_ENTITY;
     };
   }
 

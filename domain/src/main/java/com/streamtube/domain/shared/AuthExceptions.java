@@ -7,43 +7,49 @@ public final class AuthExceptions {
 
   public static final class EmailAlreadyRegisteredException extends DomainException {
     public EmailAlreadyRegisteredException() {
-      super("EMAIL_ALREADY_REGISTERED", "Email is already registered");
+      super("EMAIL_ALREADY_REGISTERED", "Email is already registered", DomainErrorType.CONFLICT);
     }
   }
 
   public static final class InvalidCredentialsException extends DomainException {
     public InvalidCredentialsException() {
-      super("INVALID_CREDENTIALS", "Invalid email or password");
+      super("INVALID_CREDENTIALS", "Invalid email or password", DomainErrorType.UNAUTHORIZED);
     }
   }
 
   public static final class EmailNotConfirmedException extends DomainException {
     public EmailNotConfirmedException() {
-      super("EMAIL_NOT_CONFIRMED", "Email address has not been confirmed");
+      super(
+          "EMAIL_NOT_CONFIRMED",
+          "Email address has not been confirmed",
+          DomainErrorType.FORBIDDEN);
     }
   }
 
   public static final class InvalidTokenException extends DomainException {
     public InvalidTokenException() {
-      super("INVALID_TOKEN", "Token is invalid");
+      super("INVALID_TOKEN", "Token is invalid", DomainErrorType.VALIDATION);
     }
   }
 
   public static final class TokenExpiredException extends DomainException {
     public TokenExpiredException() {
-      super("TOKEN_EXPIRED", "Token has expired");
+      super("TOKEN_EXPIRED", "Token has expired", DomainErrorType.GONE);
     }
   }
 
   public static final class TokenReuseDetectedException extends DomainException {
     public TokenReuseDetectedException() {
-      super("TOKEN_REUSE_DETECTED", "Refresh token reuse detected; session revoked");
+      super(
+          "TOKEN_REUSE_DETECTED",
+          "Refresh token reuse detected; session revoked",
+          DomainErrorType.UNAUTHORIZED);
     }
   }
 
   public static final class UserNotFoundException extends DomainException {
     public UserNotFoundException() {
-      super("USER_NOT_FOUND", "User not found");
+      super("USER_NOT_FOUND", "User not found", DomainErrorType.NOT_FOUND);
     }
   }
 }
