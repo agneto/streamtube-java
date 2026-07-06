@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.springdoc.openapi)
     implementation(libs.bucket4j.core)
     implementation("com.github.ben-manes.caffeine:caffeine")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.springframework.security:spring-security-test")

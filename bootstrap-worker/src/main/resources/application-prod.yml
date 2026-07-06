@@ -14,3 +14,8 @@ storage:
   public-url: ${STORAGE_PUBLIC_URL}
   access-key: ${STORAGE_ACCESS_KEY}
   secret-key: ${STORAGE_SECRET_KEY}
+# Structured JSON logs (ECS) for aggregation; dev keeps the human-readable format.
+logging:
+  structured:
+    format:
+      console: ecs
