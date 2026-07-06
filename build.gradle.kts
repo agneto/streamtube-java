@@ -18,6 +18,7 @@ allprojects {
 
 subprojects {
     apply(plugin = "java")
+    apply(plugin = "jacoco")
     apply(plugin = "io.spring.dependency-management")
     apply(plugin = "com.diffplug.spotless")
 
@@ -42,6 +43,15 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        finalizedBy(tasks.withType<org.gradle.testing.jacoco.tasks.JacocoReport>())
+    }
+
+    tasks.withType<org.gradle.testing.jacoco.tasks.JacocoReport> {
+        dependsOn(tasks.withType<Test>())
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+        }
     }
 
     spotless {
