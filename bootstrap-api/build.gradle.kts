@@ -18,11 +18,13 @@ dependencies {
     implementation(libs.springdoc.openapi)
     implementation(libs.bucket4j.core)
     implementation("com.github.ben-manes.caffeine:caffeine")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
+    testImplementation(libs.archunit.junit5)
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

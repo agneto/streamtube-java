@@ -40,6 +40,9 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(HttpMethod.GET, "/", "/actuator/health")
                     .permitAll()
+                    // Scrape endpoint: keep it reachable only from the internal network in prod.
+                    .requestMatchers(HttpMethod.GET, "/actuator/prometheus")
+                    .permitAll()
                     .requestMatchers(
                         "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
                     .permitAll()
