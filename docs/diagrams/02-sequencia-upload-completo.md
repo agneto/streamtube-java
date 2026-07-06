@@ -14,21 +14,21 @@ sequenceDiagram
     participant W as bootstrap-worker
 
     Note over C,API: Passo 0 — conta
-    C->>API: POST /auth/register
+    C->>API: POST /api/v1/auth/register
     API->>DB: user + channel + token de confirmação
-    C->>API: GET /auth/confirm-email?token=...
-    C->>API: POST /auth/login
+    C->>API: GET /api/v1/auth/confirm-email?token=...
+    C->>API: POST /api/v1/auth/login
     API-->>C: access_token (JWT) + refresh_token
 
     Note over C,S3: Passos 1–2 — upload
-    C->>API: POST /videos {title, sizeBytes, contentType}
+    C->>API: POST /api/v1/videos {title, sizeBytes, contentType}
     API->>DB: INSERT video (PENDING_UPLOAD)
     API-->>C: 201 {id, slug, uploadUrl presignada}
     C->>S3: PUT uploadUrl (bytes do vídeo)
     S3-->>C: 200
 
     Note over C,MQ: Passo 3 — confirmação
-    C->>API: POST /videos/{id}/complete-upload
+    C->>API: POST /api/v1/videos/{id}/complete-upload
     API->>S3: HEAD object (existe?)
     API->>DB: UPDATE video → QUEUED (commit)
     API->>MQ: publish {videoId} (após o commit)
@@ -42,7 +42,7 @@ sequenceDiagram
     W->>DB: UPDATE → READY (duração, thumbnail, metadata)
 
     Note over C,S3: Passo 5 — consumo
-    C->>API: GET /videos/{slug}/stream
+    C->>API: GET /api/v1/videos/{slug}/stream
     API-->>C: 302 Location: URL presignada
     C->>S3: GET (streaming direto)
 ```

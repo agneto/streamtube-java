@@ -58,7 +58,7 @@ class VideosE2ETest {
         readJson(
             mockMvc
                 .perform(
-                    post("/videos")
+                    post("/api/v1/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(initiateBody("My Video"))))
@@ -69,35 +69,35 @@ class VideosE2ETest {
 
     // complete-upload (fake storage reports the object exists) -> 204, queued, job published
     mockMvc
-        .perform(post("/videos/" + id + "/complete-upload").header("Authorization", "Bearer " + token))
+        .perform(post("/api/v1/videos/" + id + "/complete-upload").header("Authorization", "Bearer " + token))
         .andExpect(status().isNoContent());
     assertThat(publisher.lastVideoId).isEqualTo(UUID.fromString(id));
 
     // public info
     mockMvc
-        .perform(get("/videos/" + slug))
+        .perform(get("/api/v1/videos/" + slug))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.slug").value(slug))
         .andExpect(jsonPath("$.status").value("QUEUED"));
 
     // not ready -> stream 422
-    mockMvc.perform(get("/videos/" + slug + "/stream")).andExpect(status().isUnprocessableEntity());
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/stream")).andExpect(status().isUnprocessableEntity());
 
     // simulate worker finishing
     markReady(slug);
 
     mockMvc
-        .perform(get("/videos/" + slug + "/stream"))
+        .perform(get("/api/v1/videos/" + slug + "/stream"))
         .andExpect(status().isFound())
         .andExpect(result -> assertThat(result.getResponse().getHeader("Location")).contains("stream"));
-    mockMvc.perform(get("/videos/" + slug + "/download")).andExpect(status().isFound());
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/download")).andExpect(status().isFound());
   }
 
   @Test
   void initiateRequiresAuth() throws Exception {
     mockMvc
         .perform(
-            post("/videos")
+            post("/api/v1/videos")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("title", "X"))))
         .andExpect(status().isUnauthorized());
@@ -105,7 +105,7 @@ class VideosE2ETest {
 
   @Test
   void unknownSlugIsNotFound() throws Exception {
-    mockMvc.perform(get("/videos/does-not-ex")).andExpect(status().isNotFound());
+    mockMvc.perform(get("/api/v1/videos/does-not-ex")).andExpect(status().isNotFound());
   }
 
   @Test
@@ -115,7 +115,7 @@ class VideosE2ETest {
         readJson(
             mockMvc
                 .perform(
-                    post("/videos")
+                    post("/api/v1/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(initiateBody("Título antigo"))))
@@ -124,7 +124,7 @@ class VideosE2ETest {
 
     mockMvc
         .perform(
-            patch("/videos/" + id)
+            patch("/api/v1/videos/" + id)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("title", "Título novo"))))
@@ -139,7 +139,7 @@ class VideosE2ETest {
         readJson(
             mockMvc
                 .perform(
-                    post("/videos")
+                    post("/api/v1/videos")
                         .header("Authorization", "Bearer " + owner)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(initiateBody("Dono"))))
@@ -149,7 +149,7 @@ class VideosE2ETest {
     String other = registerConfirmLogin("rename-other@test.com");
     mockMvc
         .perform(
-            patch("/videos/" + id)
+            patch("/api/v1/videos/" + id)
                 .header("Authorization", "Bearer " + other)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("title", "Invasor"))))
@@ -160,7 +160,7 @@ class VideosE2ETest {
   void renameRequiresAuth() throws Exception {
     mockMvc
         .perform(
-            patch("/videos/" + UUID.randomUUID())
+            patch("/api/v1/videos/" + UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("title", "x"))))
         .andExpect(status().isUnauthorized());
@@ -173,7 +173,7 @@ class VideosE2ETest {
         readJson(
             mockMvc
                 .perform(
-                    post("/videos")
+                    post("/api/v1/videos")
                         .header("Authorization", "Bearer " + owner)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(initiateBody("Owned"))))
@@ -182,7 +182,7 @@ class VideosE2ETest {
 
     String other = registerConfirmLogin("other-v@test.com");
     mockMvc
-        .perform(post("/videos/" + id + "/complete-upload").header("Authorization", "Bearer " + other))
+        .perform(post("/api/v1/videos/" + id + "/complete-upload").header("Authorization", "Bearer " + other))
         .andExpect(status().isForbidden());
   }
 
@@ -191,7 +191,7 @@ class VideosE2ETest {
     String token = registerConfirmLogin("wrong-type@test.com");
     mockMvc
         .perform(
-            post("/videos")
+            post("/api/v1/videos")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
@@ -206,7 +206,7 @@ class VideosE2ETest {
     String token = registerConfirmLogin("too-big@test.com");
     mockMvc
         .perform(
-            post("/videos")
+            post("/api/v1/videos")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
@@ -235,15 +235,15 @@ class VideosE2ETest {
 
   private String registerConfirmLogin(String email) throws Exception {
     mockMvc
-        .perform(jsonPost("/auth/register", Map.of("email", email, "password", "password123")))
+        .perform(jsonPost("/api/v1/auth/register", Map.of("email", email, "password", "password123")))
         .andExpect(status().isCreated());
     mockMvc
-        .perform(get("/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
+        .perform(get("/api/v1/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
         .andExpect(status().isNoContent());
     JsonNode tokens =
         readJson(
             mockMvc
-                .perform(jsonPost("/auth/login", Map.of("email", email, "password", "password123")))
+                .perform(jsonPost("/api/v1/auth/login", Map.of("email", email, "password", "password123")))
                 .andExpect(status().isOk()));
     return tokens.get("access_token").asText();
   }

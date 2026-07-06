@@ -9,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Persistence model for a video. {@code channel_id} is a plain UUID column (DB-level FK only, no JPA
@@ -42,7 +44,10 @@ public class VideoEntity {
   @Column(name = "duration_seconds")
   private Double durationSeconds;
 
-  @Column(columnDefinition = "text")
+  // Raw ffprobe JSON stored as jsonb: Postgres validates it on write and future queries can
+  // reach into it (codec, resolution) without parsing text.
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
   private String metadata;
 
   @Column(name = "error_message", columnDefinition = "text")

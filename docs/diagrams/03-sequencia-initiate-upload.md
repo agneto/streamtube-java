@@ -1,4 +1,4 @@
-# Sequência — iniciar upload (`POST /videos`), camada por camada
+# Sequência — iniciar upload (`POST /api/v1/videos`), camada por camada
 
 O trajeto de uma única requisição autenticada pelas camadas da Clean Architecture: filtros de
 segurança (bootstrap) → controller → use case (application) → ports → adapters (infrastructure).
@@ -14,7 +14,7 @@ sequenceDiagram
     participant VR as VideoRepository (port→JPA)
     participant SP as StoragePort (port→S3Adapter)
 
-    C->>F: POST /videos (Bearer JWT)
+    C->>F: POST /api/v1/videos (Bearer JWT)
     F->>F: verifica assinatura/expiração,<br/>popula SecurityContext
     F->>VC: segue a cadeia
     VC->>UC: execute(userId, title, sizeBytes, contentType)

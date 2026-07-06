@@ -36,8 +36,8 @@ Phase 04+ (video/channel management) is out of scope, matching the reference bac
 
 ### Endpoints
 
-- **Auth:** `POST /auth/register`, `GET /auth/confirm-email`, `POST /auth/resend-confirmation`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/logout`, `GET /auth/me`
-- **Videos:** `POST /videos`, `POST /videos/{id}/complete-upload`, `GET /videos/{slug}`, `GET /videos/{slug}/stream` (302), `GET /videos/{slug}/download` (302)
+- **Auth:** `POST /api/v1/auth/register`, `GET /api/v1/auth/confirm-email`, `POST /api/v1/auth/resend-confirmation`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/forgot-password`, `POST /api/v1/auth/reset-password`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`
+- **Videos:** `POST /api/v1/videos`, `POST /api/v1/videos/{id}/complete-upload`, `GET /api/v1/videos/{slug}`, `GET /api/v1/videos/{slug}/stream` (302), `GET /api/v1/videos/{slug}/download` (302)
 
 ### Running
 

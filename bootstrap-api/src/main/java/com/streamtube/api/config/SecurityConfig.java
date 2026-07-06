@@ -48,16 +48,16 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.POST,
-                        "/auth/register",
-                        "/auth/login",
-                        "/auth/refresh",
-                        "/auth/forgot-password",
-                        "/auth/reset-password",
-                        "/auth/resend-confirmation")
+                        "/api/v1/auth/register",
+                        "/api/v1/auth/login",
+                        "/api/v1/auth/refresh",
+                        "/api/v1/auth/forgot-password",
+                        "/api/v1/auth/reset-password",
+                        "/api/v1/auth/resend-confirmation")
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/auth/confirm-email")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/auth/confirm-email")
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/videos/**")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/videos/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
