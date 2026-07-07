@@ -20,7 +20,10 @@
     { "key": "resetToken", "value": "" },
     { "key": "videoId", "value": "" },
     { "key": "slug", "value": "" },
-    { "key": "uploadUrl", "value": "" }
+    { "key": "uploadUrl", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "thumbUploadUrl", "value": "" },
+    { "key": "nickname", "value": "" }
   ],
   "item": [
     {
@@ -303,7 +306,7 @@
           }
         },
         {
-          "name": "7. Rename (PATCH, dono)",
+          "name": "7. Editar vídeo (PATCH, dono)",
           "event": [
             {
               "listen": "test",
@@ -319,9 +322,181 @@
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Título editado via Postman\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Título editado via Postman\",\n  \"description\": \"Descrição do vídeo\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"visibility\": \"PUBLIC\"\n}" },
             "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}"] },
-            "description": "Renomeia o vídeo (somente o dono). Usa {{videoId}} salvo pelo 'Initiate upload'. Autenticação Bearer herdada da coleção."
+            "description": "Edição parcial (somente o dono): title, description, categoryId ('GET /categories' preenche {{categoryId}}) e visibility (PUBLIC | UNLISTED). Campos ausentes ficam intactos. Usa {{videoId}} salvo pelo 'Initiate upload'."
+          }
+        },
+        {
+          "name": "8. Publish (dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('publishedAt preenchido', () => pm.response.json().publishedAt !== null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/publish", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "publish"] },
+            "description": "Publica um rascunho READY (idempotente). 422 se o vídeo ainda não estiver READY. Antes de publicar, o vídeo só é visível para o dono."
+          }
+        },
+        {
+          "name": "9. Thumbnail custom (initiate)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "pm.collectionVariables.set('thumbUploadUrl', pm.response.json().uploadUrl);",
+                  "console.log('thumbUploadUrl salvo. Agora rode \"10. Thumbnail upload (PUT no MinIO)\".');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"sizeBytes\": 102400,\n  \"contentType\": \"image/jpeg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/thumbnail", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "thumbnail"] },
+            "description": "Somente image/* e até 5 MiB (THUMB_MAX_SIZE_BYTES). sizeBytes deve ser o tamanho EXATO do arquivo (vai assinado na URL)."
+          }
+        },
+        {
+          "name": "10. Thumbnail upload (PUT no MinIO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('Upload OK (200/204)', () => [200, 204].includes(pm.response.code));"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [],
+            "body": { "mode": "file", "file": { "src": "" } },
+            "url": { "raw": "{{thumbUploadUrl}}", "host": ["{{thumbUploadUrl}}"] },
+            "description": "Selecione a imagem na aba Body -> binary -> Select File. A URL já vem assinada (NÃO use Authorization aqui)."
+          }
+        },
+        {
+          "name": "11. Thumbnail complete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('thumbnailUrl aponta para -custom', () => pm.response.json().thumbnailUrl.includes('-custom'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/thumbnail/complete", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "thumbnail", "complete"] },
+            "description": "Confirma que a imagem chegou no storage e troca a thumbnail do vídeo (409 se o objeto não existir; 422 se o vídeo não estiver READY)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "1. Listar categorias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "const j = pm.response.json();",
+                  "if (j.length) { pm.collectionVariables.set('categoryId', j[0].id); console.log('categoryId salvo:', j[0].id, '(' + j[0].name + ')'); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/categories", "host": ["{{baseUrl}}"], "path": ["api", "v1", "categories"] },
+            "description": "Lista fixa semeada por migração. Salva o primeiro id em {{categoryId}} para o PATCH de vídeo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Channels",
+      "item": [
+        {
+          "name": "1. Editar meu canal (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.collectionVariables.set('nickname', pm.response.json().nickname);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Meu Canal\",\n  \"description\": \"Descrição do canal\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/channels/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "me"] },
+            "description": "Edição parcial: name, nickname ([a-zA-Z0-9_-]{3,50}, 409 se já usado) e description (em branco limpa). Campos ausentes ficam intactos. Salva {{nickname}} para a página pública."
+          }
+        },
+        {
+          "name": "2. Meus vídeos (painel)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.code === 200);"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/channels/me/videos?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "me", "videos"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Painel do dono: todos os status/visibilidades, mais recentes primeiro. Envelope { items, page, size, totalItems, totalPages } (size máx. 100)."
+          }
+        },
+        {
+          "name": "3. Página pública do canal",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/channels/{{nickname}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "{{nickname}}"] },
+            "description": "Cabeçalho público do canal por nickname (sem userId)."
+          }
+        },
+        {
+          "name": "4. Vídeos públicos do canal",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/channels/{{nickname}}/videos?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "{{nickname}}", "videos"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Somente vídeos publicados com visibility PUBLIC, mais recentes primeiro (UNLISTED continua acessível pelo slug, mas nunca listado)."
           }
         }
       ]

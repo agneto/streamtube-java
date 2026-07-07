@@ -10,5 +10,7 @@ public interface ChannelRepository {
 
   Optional<Channel> findByUserId(UUID userId);
 
+  Optional<Channel> findByNickname(String nickname);
+
   boolean existsByNickname(String nickname);
 }

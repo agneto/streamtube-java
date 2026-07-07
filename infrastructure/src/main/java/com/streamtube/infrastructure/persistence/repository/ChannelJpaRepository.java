@@ -9,5 +9,7 @@ public interface ChannelJpaRepository extends JpaRepository<ChannelEntity, UUID>
 
   Optional<ChannelEntity> findByUserId(UUID userId);
 
+  Optional<ChannelEntity> findByNickname(String nickname);
+
   boolean existsByNickname(String nickname);
 }

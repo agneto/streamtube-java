@@ -2,9 +2,11 @@ package com.streamtube.infrastructure.persistence.mapper;
 
 import com.streamtube.domain.auth.RefreshToken;
 import com.streamtube.domain.auth.VerificationToken;
+import com.streamtube.domain.category.Category;
 import com.streamtube.domain.channel.Channel;
 import com.streamtube.domain.user.User;
 import com.streamtube.domain.video.Video;
+import com.streamtube.infrastructure.persistence.entity.CategoryEntity;
 import com.streamtube.infrastructure.persistence.entity.ChannelEntity;
 import com.streamtube.infrastructure.persistence.entity.RefreshTokenEntity;
 import com.streamtube.infrastructure.persistence.entity.UserEntity;
@@ -105,6 +107,10 @@ public final class PersistenceMapper {
         v.durationSeconds(),
         v.metadata(),
         v.errorMessage(),
+        v.description(),
+        v.categoryId(),
+        v.visibility(),
+        v.publishedAt(),
         v.createdAt(),
         v.updatedAt());
   }
@@ -121,7 +127,15 @@ public final class PersistenceMapper {
         e.getDurationSeconds(),
         e.getMetadata(),
         e.getErrorMessage(),
+        e.getDescription(),
+        e.getCategoryId(),
+        e.getVisibility(),
+        e.getPublishedAt(),
         e.getCreatedAt(),
         e.getUpdatedAt());
+  }
+
+  public static Category toDomain(CategoryEntity e) {
+    return new Category(e.getId(), e.getName(), e.getSlug(), e.getCreatedAt());
   }
 }

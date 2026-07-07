@@ -73,19 +73,37 @@ class VideosE2ETest {
         .andExpect(status().isNoContent());
     assertThat(publisher.lastVideoId).isEqualTo(UUID.fromString(id));
 
-    // public info
+    // drafts are owner-only: anonymous info is 404, the owner sees the processing status
+    mockMvc.perform(get("/api/v1/videos/" + slug)).andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug).header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.slug").value(slug))
+        .andExpect(jsonPath("$.status").value("QUEUED"))
+        .andExpect(jsonPath("$.publishedAt").doesNotExist());
+
+    // not ready -> stream 422 (for the owner; anonymous would get the draft 404)
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug + "/stream").header("Authorization", "Bearer " + token))
+        .andExpect(status().isUnprocessableEntity());
+
+    // publish before READY -> 422
+    mockMvc
+        .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+        .andExpect(status().isUnprocessableEntity());
+
+    // simulate worker finishing, then publish
+    markReady(slug);
+    mockMvc
+        .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.publishedAt").exists());
+
+    // once published, the video is open to anonymous viewers
     mockMvc
         .perform(get("/api/v1/videos/" + slug))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.slug").value(slug))
-        .andExpect(jsonPath("$.status").value("QUEUED"));
-
-    // not ready -> stream 422
-    mockMvc.perform(get("/api/v1/videos/" + slug + "/stream")).andExpect(status().isUnprocessableEntity());
-
-    // simulate worker finishing
-    markReady(slug);
-
+        .andExpect(jsonPath("$.status").value("READY"));
     mockMvc
         .perform(get("/api/v1/videos/" + slug + "/stream"))
         .andExpect(status().isFound())
@@ -219,6 +237,184 @@ class VideosE2ETest {
         .andExpect(jsonPath("$.code").value("INVALID_UPLOAD_SIZE"));
   }
 
+  @Test
+  void draftIsHiddenFromOtherAuthenticatedUsers() throws Exception {
+    String owner = registerConfirmLogin("draft-owner@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Rascunho"))))
+                .andExpect(status().isCreated()));
+    String slug = init.get("slug").asText();
+
+    // 404 (not 403): a draft must not leak its existence
+    String other = registerConfirmLogin("draft-other@test.com");
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug).header("Authorization", "Bearer " + other))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void unlistedVideoIsReachableBySlugAfterPublish() throws Exception {
+    String token = registerConfirmLogin("unlisted@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Não listado"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String slug = init.get("slug").asText();
+
+    mockMvc
+        .perform(
+            patch("/api/v1/videos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("visibility", "UNLISTED"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.visibility").value("UNLISTED"));
+
+    markReady(slug);
+    mockMvc
+        .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk());
+
+    // link-only by design: anyone with the slug can watch
+    mockMvc.perform(get("/api/v1/videos/" + slug)).andExpect(status().isOk());
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/stream")).andExpect(status().isFound());
+  }
+
+  @Test
+  void ownerEditsDescriptionCategoryAndVisibility() throws Exception {
+    String token = registerConfirmLogin("edit-all@test.com");
+    JsonNode categories =
+        readJson(mockMvc.perform(get("/api/v1/categories")).andExpect(status().isOk()));
+    assertThat(categories.size()).isEqualTo(8); // seeded by V6
+    String categoryId = categories.get(0).get("id").asText();
+
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Completo"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+
+    mockMvc
+        .perform(
+            patch("/api/v1/videos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of(
+                            "description", "Uma descrição",
+                            "categoryId", categoryId,
+                            "visibility", "UNLISTED"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("Completo")) // untouched by the partial update
+        .andExpect(jsonPath("$.description").value("Uma descrição"))
+        .andExpect(jsonPath("$.categoryId").value(categoryId))
+        .andExpect(jsonPath("$.visibility").value("UNLISTED"));
+
+    // unknown category -> 400
+    mockMvc
+        .perform(
+            patch("/api/v1/videos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("categoryId", UUID.randomUUID().toString()))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_CATEGORY"));
+
+    // invalid visibility value -> 400
+    mockMvc
+        .perform(
+            patch("/api/v1/videos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("visibility", "PRIVATE"))))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void customThumbnailFlow() throws Exception {
+    String token = registerConfirmLogin("thumb@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Com thumb"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String slug = init.get("slug").asText();
+
+    // non-image content type -> 400
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/thumbnail")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("sizeBytes", 1024, "contentType", "video/mp4"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("UNSUPPORTED_THUMBNAIL_TYPE"));
+
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/thumbnail")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("sizeBytes", 1024, "contentType", "image/png"))))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.uploadUrl").exists());
+
+    // complete before READY -> 422 (fake storage says the object exists)
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/thumbnail/complete")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isUnprocessableEntity());
+
+    markReady(slug);
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/thumbnail/complete")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.thumbnailUrl", org.hamcrest.Matchers.containsString(slug + "-custom")));
+  }
+
+  @Test
+  void categoriesArePublic() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/categories"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").exists())
+        .andExpect(jsonPath("$[0].name").exists())
+        .andExpect(jsonPath("$[0].slug").exists());
+  }
+
   // --- helpers ---
 
   private Map<String, Object> initiateBody(String title) {
@@ -234,18 +430,33 @@ class VideosE2ETest {
   }
 
   private String registerConfirmLogin(String email) throws Exception {
+    // Unique client IP per test user so the per-IP auth rate limit never trips across tests.
+    String ip = "10.9." + (Math.abs(email.hashCode()) % 250 + 1) + "." + (email.length() % 250 + 1);
     mockMvc
-        .perform(jsonPost("/api/v1/auth/register", Map.of("email", email, "password", "password123")))
+        .perform(
+            jsonPost("/api/v1/auth/register", Map.of("email", email, "password", "password123"))
+                .with(req -> withIp(req, ip)))
         .andExpect(status().isCreated());
     mockMvc
-        .perform(get("/api/v1/auth/confirm-email").param("token", mail.confirmationTokens.get(email)))
+        .perform(
+            get("/api/v1/auth/confirm-email")
+                .param("token", mail.confirmationTokens.get(email))
+                .with(req -> withIp(req, ip)))
         .andExpect(status().isNoContent());
     JsonNode tokens =
         readJson(
             mockMvc
-                .perform(jsonPost("/api/v1/auth/login", Map.of("email", email, "password", "password123")))
+                .perform(
+                    jsonPost("/api/v1/auth/login", Map.of("email", email, "password", "password123"))
+                        .with(req -> withIp(req, ip)))
                 .andExpect(status().isOk()));
     return tokens.get("access_token").asText();
+  }
+
+  private static org.springframework.mock.web.MockHttpServletRequest withIp(
+      org.springframework.mock.web.MockHttpServletRequest request, String ip) {
+    request.setRemoteAddr(ip);
+    return request;
   }
 
   private MockHttpServletRequestBuilder jsonPost(String path, Map<String, String> body)

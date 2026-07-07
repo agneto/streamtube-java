@@ -564,11 +564,18 @@ thumbnail_key = 'thumbnails/TKNJAGcikRY.jpg', metadata = '{ ...json do ffprobe..
 
 Rotas públicas (`GET /api/v1/videos/**` no allowlist — não exigem login).
 
-**`GET /api/v1/videos/{slug}`** → `GetVideoInfoUseCase` → info pública com a thumbnail já presignada:
+> **Fase 04:** o vídeo nasce como **rascunho** (`publishedAt = null`) e, enquanto rascunho, todas
+> as rotas de leitura respondem **404 para quem não é o dono** (sem vazar existência). Depois de
+> processado (`READY`), o dono chama `POST /api/v1/videos/{id}/publish`; publicado, o vídeo fica
+> aberto a qualquer um — com `visibility` `PUBLIC` ele aparece nas listagens do canal, com
+> `UNLISTED` só quem tem o link/slug acessa.
+
+**`GET /api/v1/videos/{slug}`** → `GetVideoInfoUseCase` → info com a thumbnail já presignada:
 
 ```json
 { "id": "9be8654e-...", "slug": "TKNJAGcikRY", "title": "Meu primeiro vídeo",
-  "status": "READY", "durationSeconds": 90.0,
+  "status": "READY", "description": null, "categoryId": null,
+  "visibility": "PUBLIC", "publishedAt": "2026-07-07T...", "durationSeconds": 90.0,
   "thumbnailUrl": "http://localhost:9000/streamtube-videos/thumbnails/TKNJAGcikRY.jpg?X-Amz-...",
   "channelId": "...", "createdAt": "2026-07-06T..." }
 ```

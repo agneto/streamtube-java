@@ -14,21 +14,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Renames a video the caller owns.
- *
- * <p>Application rule (the flow): load the video, authorize the owner, then delegate the actual
- * title invariant to the domain entity ({@link Video#rename}) and persist. The "what is a valid
- * title" rule lives in the domain; this use case only orchestrates.
+ * Publishes a draft video owned by the caller. The domain rule ({@link Video#publish}) requires
+ * processing to have reached READY; republishing is a no-op, so the endpoint is idempotent.
  */
 @Service
-public class RenameVideoUseCase {
+public class PublishVideoUseCase {
 
   private final VideoRepository videoRepository;
   private final ChannelRepository channelRepository;
   private final StoragePort storage;
   private final Clock clock;
 
-  public RenameVideoUseCase(
+  public PublishVideoUseCase(
       VideoRepository videoRepository,
       ChannelRepository channelRepository,
       StoragePort storage,
@@ -40,7 +37,7 @@ public class RenameVideoUseCase {
   }
 
   @Transactional
-  public VideoInfoView execute(UUID videoId, UUID userId, String newTitle) {
+  public VideoInfoView execute(UUID videoId, UUID userId) {
     Video video = videoRepository.findById(videoId).orElseThrow(VideoNotFoundException::new);
 
     Channel channel =
@@ -49,19 +46,11 @@ public class RenameVideoUseCase {
       throw new ForbiddenVideoAccessException();
     }
 
-    video.rename(newTitle, clock.instant());
+    video.publish(clock.instant());
     Video saved = videoRepository.save(video);
 
     String thumbnailUrl =
         saved.thumbnailKey() == null ? null : storage.presignStream(saved.thumbnailKey());
-    return new VideoInfoView(
-        saved.id(),
-        saved.slug(),
-        saved.title(),
-        saved.status().name(),
-        thumbnailUrl,
-        saved.durationSeconds(),
-        saved.channelId(),
-        saved.createdAt());
+    return VideoInfoView.from(saved, thumbnailUrl);
   }
 }

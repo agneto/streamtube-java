@@ -25,6 +25,10 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation(libs.archunit.junit5)
+    // Drive migrations step-by-step in tests (assert the V6 backfill against real Postgres).
+    testImplementation("org.flywaydb:flyway-core")
+    testRuntimeOnly("org.flywaydb:flyway-database-postgresql")
+    testRuntimeOnly("org.postgresql:postgresql")
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

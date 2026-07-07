@@ -18,4 +18,28 @@ public final class ChannelExceptions {
           DomainErrorType.VALIDATION);
     }
   }
+
+  public static final class InvalidChannelNameException extends DomainException {
+    public InvalidChannelNameException() {
+      super(
+          "INVALID_CHANNEL_NAME",
+          "Channel name must be between 1 and 50 characters",
+          DomainErrorType.VALIDATION);
+    }
+  }
+
+  public static final class InvalidNicknameException extends DomainException {
+    public InvalidNicknameException() {
+      super(
+          "INVALID_NICKNAME",
+          "Nickname must be 3-50 characters of letters, digits, '-' or '_'",
+          DomainErrorType.VALIDATION);
+    }
+  }
+
+  public static final class NicknameAlreadyTakenException extends DomainException {
+    public NicknameAlreadyTakenException() {
+      super("NICKNAME_ALREADY_TAKEN", "Nickname is already taken", DomainErrorType.CONFLICT);
+    }
+  }
 }
