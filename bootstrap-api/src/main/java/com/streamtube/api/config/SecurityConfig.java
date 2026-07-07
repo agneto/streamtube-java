@@ -57,7 +57,13 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/auth/confirm-email")
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/videos/**")
+                    .requestMatchers(HttpMethod.GET, "/api/v1/videos/**", "/api/v1/categories")
+                    .permitAll()
+                    // Order matters: /channels/me/** must stay authenticated, so it is matched
+                    // before the public /channels/** channel pages.
+                    .requestMatchers("/api/v1/channels/me/**")
+                    .authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/channels/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

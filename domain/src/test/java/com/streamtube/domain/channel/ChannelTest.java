@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.streamtube.domain.shared.ChannelExceptions.InvalidChannelDescriptionException;
+import com.streamtube.domain.shared.ChannelExceptions.InvalidChannelNameException;
+import com.streamtube.domain.shared.ChannelExceptions.InvalidNicknameException;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -58,5 +60,51 @@ class ChannelTest {
     assertThatThrownBy(() -> channel.updateDescription(tooLong, NOW.plusSeconds(60)))
         .isInstanceOf(InvalidChannelDescriptionException.class)
         .hasMessage("Channel description must be at most 5000 characters");
+  }
+
+  @Test
+  void rename_trimsAndStoresNewName() {
+    Channel channel = newChannel();
+    Instant later = NOW.plusSeconds(60);
+
+    channel.rename("  Novo Nome  ", later);
+
+    assertThat(channel.name()).isEqualTo("Novo Nome");
+    assertThat(channel.updatedAt()).isEqualTo(later);
+  }
+
+  @Test
+  void rename_rejectsBlankAndTooLongNames() {
+    Channel channel = newChannel();
+
+    assertThatThrownBy(() -> channel.rename("   ", NOW))
+        .isInstanceOf(InvalidChannelNameException.class);
+    assertThatThrownBy(() -> channel.rename("a".repeat(51), NOW))
+        .isInstanceOf(InvalidChannelNameException.class);
+  }
+
+  @Test
+  void changeNickname_acceptsValidCharset() {
+    Channel channel = newChannel();
+    Instant later = NOW.plusSeconds(60);
+
+    channel.changeNickname("novo_Nick-123", later);
+
+    assertThat(channel.nickname()).isEqualTo("novo_Nick-123");
+    assertThat(channel.updatedAt()).isEqualTo(later);
+  }
+
+  @Test
+  void changeNickname_rejectsInvalidValues() {
+    Channel channel = newChannel();
+
+    assertThatThrownBy(() -> channel.changeNickname("ab", NOW)) // too short
+        .isInstanceOf(InvalidNicknameException.class);
+    assertThatThrownBy(() -> channel.changeNickname("has space", NOW))
+        .isInstanceOf(InvalidNicknameException.class);
+    assertThatThrownBy(() -> channel.changeNickname("acentuadíssimo", NOW))
+        .isInstanceOf(InvalidNicknameException.class);
+    assertThatThrownBy(() -> channel.changeNickname(null, NOW))
+        .isInstanceOf(InvalidNicknameException.class);
   }
 }

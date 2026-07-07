@@ -67,4 +67,28 @@ public final class VideoExceptions {
           DomainErrorType.VALIDATION);
     }
   }
+
+  public static final class InvalidVideoDescriptionException extends DomainException {
+    public InvalidVideoDescriptionException() {
+      super(
+          "INVALID_VIDEO_DESCRIPTION",
+          "Video description must be at most 5000 characters",
+          DomainErrorType.VALIDATION);
+    }
+  }
+
+  public static final class InvalidCategoryException extends DomainException {
+    public InvalidCategoryException() {
+      super("INVALID_CATEGORY", "Category does not exist", DomainErrorType.VALIDATION);
+    }
+  }
+
+  public static final class UnsupportedThumbnailTypeException extends DomainException {
+    public UnsupportedThumbnailTypeException() {
+      super(
+          "UNSUPPORTED_THUMBNAIL_TYPE",
+          "Only image content types are accepted for thumbnails",
+          DomainErrorType.VALIDATION);
+    }
+  }
 }
