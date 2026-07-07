@@ -51,6 +51,28 @@ public class Channel {
     this.updatedAt = now;
   }
 
+  /** Renames the channel. Domain invariant: non-blank, at most 50 chars (column limit). */
+  public void rename(String newName, Instant now) {
+    if (newName == null || newName.isBlank() || newName.trim().length() > 50) {
+      throw new ChannelExceptions.InvalidChannelNameException();
+    }
+    this.name = newName.trim();
+    this.updatedAt = now;
+  }
+
+  /**
+   * Changes the public nickname (part of the channel URL). Invariant: 3–50 chars of
+   * {@code [a-zA-Z0-9_-]}. Uniqueness is enforced by the repository/DB constraint. Old URLs are
+   * not redirected — accepted trade-off recorded in the Phase 04 plan.
+   */
+  public void changeNickname(String newNickname, Instant now) {
+    if (newNickname == null || !newNickname.matches("[a-zA-Z0-9_-]{3,50}")) {
+      throw new ChannelExceptions.InvalidNicknameException();
+    }
+    this.nickname = newNickname;
+    this.updatedAt = now;
+  }
+
   public UUID id() {
     return id;
   }

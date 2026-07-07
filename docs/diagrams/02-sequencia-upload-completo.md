@@ -41,7 +41,12 @@ sequenceDiagram
     W->>S3: PUT thumbnails/{slug}.jpg
     W->>DB: UPDATE → READY (duração, thumbnail, metadata)
 
-    Note over C,S3: Passo 5 — consumo
+    Note over C,API: Passo 5 — publicação (Fase 04)
+    C->>API: POST /api/v1/videos/{id}/publish (dono; exige READY)
+    API->>DB: UPDATE video → published_at = now()
+    API-->>C: 200 (antes disso, leituras respondem 404 para não-donos)
+
+    Note over C,S3: Passo 6 — consumo
     C->>API: GET /api/v1/videos/{slug}/stream
     API-->>C: 302 Location: URL presignada
     C->>S3: GET (streaming direto)

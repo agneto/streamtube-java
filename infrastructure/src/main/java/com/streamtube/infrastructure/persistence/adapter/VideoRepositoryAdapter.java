@@ -1,11 +1,16 @@
 package com.streamtube.infrastructure.persistence.adapter;
 
+import com.streamtube.domain.shared.PageResult;
 import com.streamtube.domain.video.Video;
 import com.streamtube.domain.video.VideoRepository;
+import com.streamtube.domain.video.Visibility;
+import com.streamtube.infrastructure.persistence.entity.VideoEntity;
 import com.streamtube.infrastructure.persistence.mapper.PersistenceMapper;
 import com.streamtube.infrastructure.persistence.repository.VideoJpaRepository;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -35,5 +40,30 @@ public class VideoRepositoryAdapter implements VideoRepository {
   @Override
   public boolean existsBySlug(String slug) {
     return jpa.existsBySlug(slug);
+  }
+
+  @Override
+  public PageResult<Video> findPageByChannelId(UUID channelId, int page, int size) {
+    return toPageResult(
+        jpa.findByChannelIdOrderByCreatedAtDesc(channelId, PageRequest.of(page, size)),
+        page,
+        size);
+  }
+
+  @Override
+  public PageResult<Video> findPublishedPublicPageByChannelId(UUID channelId, int page, int size) {
+    return toPageResult(
+        jpa.findByChannelIdAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+            channelId, Visibility.PUBLIC, PageRequest.of(page, size)),
+        page,
+        size);
+  }
+
+  private static PageResult<Video> toPageResult(Page<VideoEntity> result, int page, int size) {
+    return new PageResult<>(
+        result.getContent().stream().map(PersistenceMapper::toDomain).toList(),
+        page,
+        size,
+        result.getTotalElements());
   }
 }

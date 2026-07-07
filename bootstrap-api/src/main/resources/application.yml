@@ -71,6 +71,8 @@ app:
 upload:
   # Maximum declared upload size; also signed into the presigned PUT URL.
   max-size-bytes: ${UPLOAD_MAX_SIZE_BYTES:2147483648}
+  # Maximum declared custom-thumbnail size (default 5 MiB); also signed into the presigned URL.
+  thumbnail-max-size-bytes: ${THUMB_MAX_SIZE_BYTES:5242880}
 
 management:
   endpoints:

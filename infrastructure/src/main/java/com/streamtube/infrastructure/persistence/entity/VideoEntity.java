@@ -1,6 +1,7 @@
 package com.streamtube.infrastructure.persistence.entity;
 
 import com.streamtube.domain.video.VideoStatus;
+import com.streamtube.domain.video.Visibility;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,8 +14,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * Persistence model for a video. {@code channel_id} is a plain UUID column (DB-level FK only, no JPA
- * association), so the worker's persistence unit needs only this entity.
+ * Persistence model for a video. {@code channel_id} and {@code category_id} are plain UUID columns
+ * (DB-level FK only, no JPA association), so the worker's persistence unit needs only this entity.
  */
 @Entity
 @Table(name = "videos")
@@ -53,6 +54,19 @@ public class VideoEntity {
   @Column(name = "error_message", columnDefinition = "text")
   private String errorMessage;
 
+  @Column(columnDefinition = "text")
+  private String description;
+
+  @Column(name = "category_id")
+  private UUID categoryId;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 10)
+  private Visibility visibility;
+
+  @Column(name = "published_at")
+  private Instant publishedAt;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -72,6 +86,10 @@ public class VideoEntity {
       Double durationSeconds,
       String metadata,
       String errorMessage,
+      String description,
+      UUID categoryId,
+      Visibility visibility,
+      Instant publishedAt,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -84,6 +102,10 @@ public class VideoEntity {
     this.durationSeconds = durationSeconds;
     this.metadata = metadata;
     this.errorMessage = errorMessage;
+    this.description = description;
+    this.categoryId = categoryId;
+    this.visibility = visibility;
+    this.publishedAt = publishedAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -126,6 +148,22 @@ public class VideoEntity {
 
   public String getErrorMessage() {
     return errorMessage;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public UUID getCategoryId() {
+    return categoryId;
+  }
+
+  public Visibility getVisibility() {
+    return visibility;
+  }
+
+  public Instant getPublishedAt() {
+    return publishedAt;
   }
 
   public Instant getCreatedAt() {

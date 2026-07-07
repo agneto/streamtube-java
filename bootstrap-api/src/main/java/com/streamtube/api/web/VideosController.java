@@ -2,14 +2,19 @@ package com.streamtube.api.web;
 
 import com.streamtube.api.web.dto.VideoDtos.CreateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.InitiateUploadResponse;
+import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadRequest;
+import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadResponse;
 import com.streamtube.api.web.dto.VideoDtos.UpdateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.VideoInfoResponse;
+import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
 import com.streamtube.application.video.CompleteUploadUseCase;
 import com.streamtube.application.video.GetDownloadUrlUseCase;
 import com.streamtube.application.video.GetStreamUrlUseCase;
 import com.streamtube.application.video.GetVideoInfoUseCase;
+import com.streamtube.application.video.InitiateThumbnailUploadUseCase;
 import com.streamtube.application.video.InitiateUploadUseCase;
-import com.streamtube.application.video.RenameVideoUseCase;
+import com.streamtube.application.video.PublishVideoUseCase;
+import com.streamtube.application.video.UpdateVideoDetailsUseCase;
 import com.streamtube.application.video.result.InitiateUploadResult;
 import com.streamtube.application.video.result.VideoInfoView;
 import com.streamtube.infrastructure.security.AuthenticatedUser;
@@ -32,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/videos")
-@Tag(name = "videos", description = "Video upload, processing, streaming and download")
+@Tag(name = "videos", description = "Video upload, processing, management, streaming and download")
 public class VideosController {
 
   private final InitiateUploadUseCase initiateUpload;
@@ -40,7 +45,10 @@ public class VideosController {
   private final GetVideoInfoUseCase getVideoInfo;
   private final GetStreamUrlUseCase getStreamUrl;
   private final GetDownloadUrlUseCase getDownloadUrl;
-  private final RenameVideoUseCase renameVideo;
+  private final UpdateVideoDetailsUseCase updateVideoDetails;
+  private final PublishVideoUseCase publishVideo;
+  private final InitiateThumbnailUploadUseCase initiateThumbnailUpload;
+  private final CompleteThumbnailUploadUseCase completeThumbnailUpload;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -48,13 +56,19 @@ public class VideosController {
       GetVideoInfoUseCase getVideoInfo,
       GetStreamUrlUseCase getStreamUrl,
       GetDownloadUrlUseCase getDownloadUrl,
-      RenameVideoUseCase renameVideo) {
+      UpdateVideoDetailsUseCase updateVideoDetails,
+      PublishVideoUseCase publishVideo,
+      InitiateThumbnailUploadUseCase initiateThumbnailUpload,
+      CompleteThumbnailUploadUseCase completeThumbnailUpload) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
     this.getStreamUrl = getStreamUrl;
     this.getDownloadUrl = getDownloadUrl;
-    this.renameVideo = renameVideo;
+    this.updateVideoDetails = updateVideoDetails;
+    this.publishVideo = publishVideo;
+    this.initiateThumbnailUpload = initiateThumbnailUpload;
+    this.completeThumbnailUpload = completeThumbnailUpload;
   }
 
   @PostMapping
@@ -78,18 +92,74 @@ public class VideosController {
   }
 
   @PatchMapping("/{id}")
-  @Operation(summary = "Rename a video (owner only)")
-  public VideoInfoResponse rename(
+  @Operation(summary = "Update a video's title/description/category/visibility (owner only)")
+  public VideoInfoResponse update(
       @AuthenticationPrincipal AuthenticatedUser principal,
       @PathVariable("id") UUID id,
       @Valid @RequestBody UpdateVideoRequest request) {
-    return toResponse(renameVideo.execute(id, principal.id(), request.title()));
+    return toResponse(
+        updateVideoDetails.execute(
+            id,
+            principal.id(),
+            new UpdateVideoDetailsUseCase.Command(
+                request.title(), request.description(), request.categoryId(),
+                request.visibility())));
+  }
+
+  @PostMapping("/{id}/publish")
+  @Operation(summary = "Publish a READY draft video (idempotent, owner only)")
+  public VideoInfoResponse publish(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    return toResponse(publishVideo.execute(id, principal.id()));
+  }
+
+  @PostMapping("/{id}/thumbnail")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Initiate a custom thumbnail upload (returns a presigned PUT URL)")
+  public ThumbnailUploadResponse initiateThumbnail(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody ThumbnailUploadRequest request) {
+    return new ThumbnailUploadResponse(
+        initiateThumbnailUpload.execute(
+            id, principal.id(), request.sizeBytes(), request.contentType()));
+  }
+
+  @PostMapping("/{id}/thumbnail/complete")
+  @Operation(summary = "Confirm the custom thumbnail upload and swap the video's thumbnail")
+  public VideoInfoResponse completeThumbnail(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    return toResponse(completeThumbnailUpload.execute(id, principal.id()));
   }
 
   @GetMapping("/{slug}")
-  @Operation(summary = "Get public video info")
-  public VideoInfoResponse info(@PathVariable("slug") String slug) {
-    return toResponse(getVideoInfo.execute(slug));
+  @Operation(summary = "Get video info (drafts are visible to their owner only)")
+  public VideoInfoResponse info(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("slug") String slug) {
+    return toResponse(getVideoInfo.execute(slug, viewerId(principal)));
+  }
+
+  @GetMapping("/{slug}/stream")
+  @Operation(summary = "Redirect (302) to a presigned streaming URL")
+  public ResponseEntity<Void> stream(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("slug") String slug) {
+    return ResponseEntity.status(HttpStatus.FOUND)
+        .location(URI.create(getStreamUrl.execute(slug, viewerId(principal))))
+        .build();
+  }
+
+  @GetMapping("/{slug}/download")
+  @Operation(summary = "Redirect (302) to a presigned download URL")
+  public ResponseEntity<Void> download(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("slug") String slug) {
+    return ResponseEntity.status(HttpStatus.FOUND)
+        .location(URI.create(getDownloadUrl.execute(slug, viewerId(principal))))
+        .build();
+  }
+
+  /** Read endpoints are public: the principal is null for anonymous requests. */
+  private static UUID viewerId(AuthenticatedUser principal) {
+    return principal == null ? null : principal.id();
   }
 
   private VideoInfoResponse toResponse(VideoInfoView v) {
@@ -98,25 +168,13 @@ public class VideosController {
         v.slug(),
         v.title(),
         v.status(),
+        v.description(),
+        v.categoryId(),
+        v.visibility(),
+        v.publishedAt(),
         v.thumbnailUrl(),
         v.durationSeconds(),
         v.channelId(),
         v.createdAt());
-  }
-
-  @GetMapping("/{slug}/stream")
-  @Operation(summary = "Redirect (302) to a presigned streaming URL")
-  public ResponseEntity<Void> stream(@PathVariable("slug") String slug) {
-    return ResponseEntity.status(HttpStatus.FOUND)
-        .location(URI.create(getStreamUrl.execute(slug)))
-        .build();
-  }
-
-  @GetMapping("/{slug}/download")
-  @Operation(summary = "Redirect (302) to a presigned download URL")
-  public ResponseEntity<Void> download(@PathVariable("slug") String slug) {
-    return ResponseEntity.status(HttpStatus.FOUND)
-        .location(URI.create(getDownloadUrl.execute(slug)))
-        .build();
   }
 }

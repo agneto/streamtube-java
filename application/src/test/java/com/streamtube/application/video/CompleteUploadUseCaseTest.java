@@ -18,6 +18,7 @@ import com.streamtube.domain.shared.VideoExceptions.VideoStatusConflictException
 import com.streamtube.domain.video.Video;
 import com.streamtube.domain.video.VideoRepository;
 import com.streamtube.domain.video.VideoStatus;
+import com.streamtube.domain.video.Visibility;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -61,7 +62,7 @@ class CompleteUploadUseCaseTest {
   private Video video(UUID owningChannel, VideoStatus status) {
     return new Video(
         videoId, owningChannel, "T", "slug123", status, "videos/slug123", null, null, null, null,
-        NOW, NOW);
+        null, null, Visibility.PUBLIC, null, NOW, NOW);
   }
 
   @Test
