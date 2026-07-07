@@ -31,8 +31,11 @@ for the full rationale (options, trade-offs, decision per topic).
 | 01 | Base config, Docker Compose infra, health, Flyway | done |
 | 02 | Auth & account (register, login, JWT refresh rotation, email verification, password reset) | done |
 | 03 | Video upload (presigned), processing worker (ffprobe + thumbnail), streaming/download | done |
+| 04 | Video & channel management (categories, editing, visibility, draft→publish, panel, public channel page) | planned — [plan](docs/phases/phase-04-management/phase-04-management.md) |
 
-Phase 04+ (video/channel management) is out of scope, matching the reference backend.
+Phase 05+ (watch page, social interactions, home/search) remains out of scope for now. The
+reference NestJS backend stopped at Phase 03, so Phase 04 was planned from the reference
+project plan (Next/Nest master plan).
 
 ### Endpoints
 
