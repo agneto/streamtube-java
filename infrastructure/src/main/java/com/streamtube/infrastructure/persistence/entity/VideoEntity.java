@@ -67,6 +67,11 @@ public class VideoEntity {
   @Column(name = "published_at")
   private Instant publishedAt;
 
+  // updatable = false: only the atomic "views_count + 1" statement may change the counter — a
+  // regular save() flushing a stale in-memory value would silently erase concurrent views.
+  @Column(name = "views_count", nullable = false, updatable = false)
+  private long viewsCount;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -90,6 +95,7 @@ public class VideoEntity {
       UUID categoryId,
       Visibility visibility,
       Instant publishedAt,
+      long viewsCount,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -106,6 +112,7 @@ public class VideoEntity {
     this.categoryId = categoryId;
     this.visibility = visibility;
     this.publishedAt = publishedAt;
+    this.viewsCount = viewsCount;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -164,6 +171,10 @@ public class VideoEntity {
 
   public Instant getPublishedAt() {
     return publishedAt;
+  }
+
+  public long getViewsCount() {
+    return viewsCount;
   }
 
   public Instant getCreatedAt() {

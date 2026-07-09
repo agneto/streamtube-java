@@ -15,6 +15,7 @@ public record VideoInfoView(
     Instant publishedAt,
     String thumbnailUrl,
     Double durationSeconds,
+    long views,
     UUID channelId,
     Instant createdAt) {
 
@@ -30,6 +31,7 @@ public record VideoInfoView(
         video.publishedAt(),
         thumbnailUrl,
         video.durationSeconds(),
+        video.viewsCount(),
         video.channelId(),
         video.createdAt());
   }

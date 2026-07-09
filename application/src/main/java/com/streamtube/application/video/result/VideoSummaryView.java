@@ -14,6 +14,7 @@ public record VideoSummaryView(
     Instant publishedAt,
     String thumbnailUrl,
     Double durationSeconds,
+    long views,
     Instant createdAt) {
 
   public static VideoSummaryView from(Video video, String thumbnailUrl) {
@@ -26,6 +27,7 @@ public record VideoSummaryView(
         video.publishedAt(),
         thumbnailUrl,
         video.durationSeconds(),
+        video.viewsCount(),
         video.createdAt());
   }
 }

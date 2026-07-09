@@ -577,7 +577,7 @@ Rotas públicas (`GET /api/v1/videos/**` no allowlist — não exigem login).
   "status": "READY", "description": null, "categoryId": null,
   "visibility": "PUBLIC", "publishedAt": "2026-07-07T...", "durationSeconds": 90.0,
   "thumbnailUrl": "http://localhost:9000/streamtube-videos/thumbnails/TKNJAGcikRY.jpg?X-Amz-...",
-  "channelId": "...", "createdAt": "2026-07-06T..." }
+  "views": 2, "channelId": "...", "createdAt": "2026-07-06T..." }
 ```
 
 **`GET /api/v1/videos/{slug}/stream`** → redirect para o storage; o player segue o 302 e faz streaming
@@ -592,18 +592,29 @@ public ResponseEntity<Void> stream(@PathVariable("slug") String slug) {
 }
 ```
 
-`GetStreamUrlUseCase` recusa vídeo não processado:
+`GetStreamUrlUseCase` recusa vídeo não processado e conta a view (Fase 05):
 
 ```java
 Video video = videoRepository.findBySlug(slug).orElseThrow(VideoNotFoundException::new);
+access.ensureViewable(video, viewerUserId);
 if (!video.isReady()) {
   throw new VideoNotReadyException();    // → 422 VIDEO_NOT_READY
+}
+if (video.isPublished()) {
+  videoRepository.incrementViews(video.id());   // UPDATE views_count = views_count + 1 (atômico)
 }
 return storage.presignStream(video.storageKey());
 ```
 
+> **Fase 05:** só vídeo **publicado** acumula views (o dono assistindo o próprio rascunho não é
+> audiência) e o incremento é um único `UPDATE` atômico no banco — nunca ler-modificar-salvar pela
+> entidade, ou viewers concorrentes perderiam contagens. Sem dedup: recarregar conta de novo
+> (trade-off documentado). `GET /api/v1/videos/{slug}/related?limit=10` devolve as sugestões da
+> página de visualização: mesma categoria, publicadas + `PUBLIC`, excluindo o próprio vídeo.
+
 `GET /api/v1/videos/{slug}/download` é idêntico, mas assina com
-`response-content-disposition: attachment; filename="..."` para forçar download.
+`response-content-disposition: attachment; filename="..."` para forçar download — e **não** conta
+view.
 
 ---
 
