@@ -23,7 +23,9 @@
     { "key": "uploadUrl", "value": "" },
     { "key": "categoryId", "value": "" },
     { "key": "thumbUploadUrl", "value": "" },
-    { "key": "nickname", "value": "" }
+    { "key": "nickname", "value": "" },
+    { "key": "commentId", "value": "" },
+    { "key": "otherNickname", "value": "" }
   ],
   "item": [
     {
@@ -517,7 +519,7 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/api/v1/channels/{{nickname}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "{{nickname}}"] },
-            "description": "Cabeçalho público do canal por nickname (sem userId)."
+            "description": "Cabeçalho público do canal por nickname (sem userId). Fase 06: inclui subscribersCount e subscribed (false para anônimo)."
           }
         },
         {
@@ -528,6 +530,221 @@
             "header": [],
             "url": { "raw": "{{baseUrl}}/api/v1/channels/{{nickname}}/videos?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "{{nickname}}", "videos"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
             "description": "Somente vídeos publicados com visibility PUBLIC, mais recentes primeiro (UNLISTED continua acessível pelo slug, mas nunca listado)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Social",
+      "item": [
+        {
+          "name": "1. Like no vídeo (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"LIKE\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/reaction", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "reaction"] },
+            "description": "Define/troca a minha reação (LIKE | DISLIKE) num vídeo PUBLICADO (rascunho: 404 para não-dono, 409 para o dono). Uma reação por usuário: trocar ajusta os dois contadores. Idempotente por tipo. Veja likes/dislikes/myReaction no 'Get info'."
+          }
+        },
+        {
+          "name": "2. Remover reação do vídeo (DELETE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/reaction", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "reaction"] },
+            "description": "Remove a minha reação (idempotente: repetir continua 204)."
+          }
+        },
+        {
+          "name": "3. Comentar no vídeo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "pm.collectionVariables.set('commentId', pm.response.json().id);",
+                  "pm.test('autor é o canal (sem userId)', () => pm.response.json().author.nickname !== undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Primeiro comentário via Postman!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/comments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "comments"] },
+            "description": "Comenta num vídeo PUBLICADO (1–2000 chars). Salva {{commentId}} para responder/reagir/apagar."
+          }
+        },
+        {
+          "name": "4. Responder comentário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "pm.test('parentId preenchido', () => pm.response.json().parentId !== null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Uma resposta!\",\n  \"parentId\": \"{{commentId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/comments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "comments"] },
+            "description": "Resposta de um nível (estilo YouTube): o parentId deve ser um comentário RAIZ do mesmo vídeo — responder uma resposta dá 400 INVALID_PARENT_COMMENT."
+          }
+        },
+        {
+          "name": "5. Listar comentários do vídeo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('só comentários raiz, com repliesCount', () => {",
+                  "  pm.response.json().items.forEach(c => {",
+                  "    pm.expect(c.parentId).to.eql(null);",
+                  "    pm.expect(c.repliesCount).to.be.at.least(0);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/comments?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "comments"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Comentários raiz do vídeo, mais recentes primeiro (público). Respostas via 'Respostas do comentário'."
+          }
+        },
+        {
+          "name": "6. Respostas do comentário",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.code === 200);"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/comments/{{commentId}}/replies?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "comments", "{{commentId}}", "replies"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Respostas do comentário, mais antigas primeiro (ordem de conversa; público)."
+          }
+        },
+        {
+          "name": "7. Like no comentário (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"LIKE\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/comments/{{commentId}}/reaction", "host": ["{{baseUrl}}"], "path": ["api", "v1", "comments", "{{commentId}}", "reaction"] },
+            "description": "Mesma semântica da reação de vídeo (definir/trocar; DELETE na mesma URL remove)."
+          }
+        },
+        {
+          "name": "8. Apagar comentário (autor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/comments/{{commentId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "comments", "{{commentId}}"] },
+            "description": "Só o autor (403 para outros). Apagar um comentário raiz remove as respostas junto e o commentsCount do vídeo cai por 1 + respostas."
+          }
+        },
+        {
+          "name": "9. Inscrever-se num canal (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/channels/{{otherNickname}}/subscription", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "{{otherNickname}}", "subscription"] },
+            "description": "Preencha {{otherNickname}} com o nickname de OUTRO canal — inscrever-se no próprio dá 400 SELF_SUBSCRIPTION. Idempotente (repetir não conta duas vezes). DELETE na mesma URL cancela."
+          }
+        },
+        {
+          "name": "10. Cancelar inscrição (DELETE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/channels/{{otherNickname}}/subscription", "host": ["{{baseUrl}}"], "path": ["api", "v1", "channels", "{{otherNickname}}", "subscription"] },
+            "description": "Idempotente: cancelar sem estar inscrito continua 204."
+          }
+        },
+        {
+          "name": "11. Minhas inscrições",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.code === 200);"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/subscriptions?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "subscriptions"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Canais que sigo, inscrição mais recente primeiro, com subscribersCount e subscribedAt."
+          }
+        },
+        {
+          "name": "12. Feed dos canais que sigo",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.code === 200);"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/subscriptions/videos?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "subscriptions", "videos"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Últimos vídeos publicados + PUBLIC dos canais que sigo (área 'canais seguidos')."
           }
         }
       ]

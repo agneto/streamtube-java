@@ -67,10 +67,19 @@ public class VideoEntity {
   @Column(name = "published_at")
   private Instant publishedAt;
 
-  // updatable = false: only the atomic "views_count + 1" statement may change the counter — a
-  // regular save() flushing a stale in-memory value would silently erase concurrent views.
+  // updatable = false on every counter: only the atomic "± 1" statements may change them — a
+  // regular save() flushing a stale in-memory value would silently erase concurrent updates.
   @Column(name = "views_count", nullable = false, updatable = false)
   private long viewsCount;
+
+  @Column(name = "likes_count", nullable = false, updatable = false)
+  private long likesCount;
+
+  @Column(name = "dislikes_count", nullable = false, updatable = false)
+  private long dislikesCount;
+
+  @Column(name = "comments_count", nullable = false, updatable = false)
+  private long commentsCount;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
@@ -96,6 +105,9 @@ public class VideoEntity {
       Visibility visibility,
       Instant publishedAt,
       long viewsCount,
+      long likesCount,
+      long dislikesCount,
+      long commentsCount,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -113,6 +125,9 @@ public class VideoEntity {
     this.visibility = visibility;
     this.publishedAt = publishedAt;
     this.viewsCount = viewsCount;
+    this.likesCount = likesCount;
+    this.dislikesCount = dislikesCount;
+    this.commentsCount = commentsCount;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -175,6 +190,18 @@ public class VideoEntity {
 
   public long getViewsCount() {
     return viewsCount;
+  }
+
+  public long getLikesCount() {
+    return likesCount;
+  }
+
+  public long getDislikesCount() {
+    return dislikesCount;
+  }
+
+  public long getCommentsCount() {
+    return commentsCount;
   }
 
   public Instant getCreatedAt() {

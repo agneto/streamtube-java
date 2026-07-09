@@ -16,7 +16,14 @@ class ChannelTest {
 
   private Channel newChannel() {
     return new Channel(
-        UUID.randomUUID(), UUID.randomUUID(), "Original", "nickname", "descrição antiga", NOW, NOW);
+        UUID.randomUUID(),
+        UUID.randomUUID(),
+        "Original",
+        "nickname",
+        "descrição antiga",
+        0L,
+        NOW,
+        NOW);
   }
 
   @Test

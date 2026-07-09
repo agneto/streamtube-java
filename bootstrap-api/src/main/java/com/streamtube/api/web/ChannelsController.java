@@ -9,6 +9,8 @@ import com.streamtube.application.channel.GetPublicChannelUseCase;
 import com.streamtube.application.channel.UpdateChannelInfoUseCase;
 import com.streamtube.application.channel.result.ChannelInfoView;
 import com.streamtube.application.channel.result.PublicChannelView;
+import com.streamtube.application.social.SubscribeUseCase;
+import com.streamtube.application.social.UnsubscribeUseCase;
 import com.streamtube.application.video.ListChannelVideosUseCase;
 import com.streamtube.application.video.ListMyVideosUseCase;
 import com.streamtube.application.video.result.VideoSummaryView;
@@ -16,13 +18,18 @@ import com.streamtube.infrastructure.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -34,16 +41,22 @@ public class ChannelsController {
   private final GetPublicChannelUseCase getPublicChannel;
   private final ListMyVideosUseCase listMyVideos;
   private final ListChannelVideosUseCase listChannelVideos;
+  private final SubscribeUseCase subscribe;
+  private final UnsubscribeUseCase unsubscribe;
 
   public ChannelsController(
       UpdateChannelInfoUseCase updateChannelInfo,
       GetPublicChannelUseCase getPublicChannel,
       ListMyVideosUseCase listMyVideos,
-      ListChannelVideosUseCase listChannelVideos) {
+      ListChannelVideosUseCase listChannelVideos,
+      SubscribeUseCase subscribe,
+      UnsubscribeUseCase unsubscribe) {
     this.updateChannelInfo = updateChannelInfo;
     this.getPublicChannel = getPublicChannel;
     this.listMyVideos = listMyVideos;
     this.listChannelVideos = listChannelVideos;
+    this.subscribe = subscribe;
+    this.unsubscribe = unsubscribe;
   }
 
   @PatchMapping("/me")
@@ -69,11 +82,42 @@ public class ChannelsController {
   }
 
   @GetMapping("/{nickname}")
-  @Operation(summary = "Public channel page header")
-  public PublicChannelResponse publicChannel(@PathVariable("nickname") String nickname) {
-    PublicChannelView v = getPublicChannel.execute(nickname);
+  @Operation(summary = "Public channel page header (subscriber count + viewer's subscription)")
+  public PublicChannelResponse publicChannel(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("nickname") String nickname) {
+    PublicChannelView v = getPublicChannel.execute(nickname, viewerId(principal));
     return new PublicChannelResponse(
-        v.id(), v.name(), v.nickname(), v.description(), v.createdAt());
+        v.id(),
+        v.name(),
+        v.nickname(),
+        v.description(),
+        v.subscribersCount(),
+        v.subscribed(),
+        v.createdAt());
+  }
+
+  @PutMapping("/{nickname}/subscription")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Subscribe to a channel (idempotent; own channel is a 400)")
+  public void subscribe(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("nickname") String nickname) {
+    subscribe.execute(principal.id(), nickname);
+  }
+
+  @DeleteMapping("/{nickname}/subscription")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Unsubscribe from a channel (idempotent)")
+  public void unsubscribe(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("nickname") String nickname) {
+    unsubscribe.execute(principal.id(), nickname);
+  }
+
+  /** The public page is open: the principal is null for anonymous requests. */
+  private static UUID viewerId(AuthenticatedUser principal) {
+    return principal == null ? null : principal.id();
   }
 
   @GetMapping("/{nickname}/videos")

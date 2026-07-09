@@ -34,6 +34,7 @@ public final class VideoDtos {
 
   public record InitiateUploadResponse(UUID id, String slug, String uploadUrl) {}
 
+  /** {@code myReaction} is resolved only on the info read (null on write responses/anonymous). */
   public record VideoInfoResponse(
       UUID id,
       String slug,
@@ -46,6 +47,10 @@ public final class VideoDtos {
       String thumbnailUrl,
       Double durationSeconds,
       long views,
+      long likes,
+      long dislikes,
+      long commentsCount,
+      String myReaction,
       UUID channelId,
       Instant createdAt) {}
 
