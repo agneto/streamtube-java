@@ -66,6 +66,11 @@ public class VideoRepositoryAdapter implements VideoRepository {
   }
 
   @Override
+  public PageResult<Video> findSubscriptionFeed(UUID userId, int page, int size) {
+    return toPageResult(jpa.findSubscriptionFeed(userId, PageRequest.of(page, size)), page, size);
+  }
+
+  @Override
   public List<Video> findRelatedByCategory(UUID categoryId, UUID excludeId, int limit) {
     return jpa
         .findByCategoryIdAndIdNotAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(

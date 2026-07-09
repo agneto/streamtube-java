@@ -5,6 +5,8 @@ import com.streamtube.domain.channel.ChannelRepository;
 import com.streamtube.domain.shared.ChannelExceptions.NicknameAlreadyTakenException;
 import com.streamtube.infrastructure.persistence.mapper.PersistenceMapper;
 import com.streamtube.infrastructure.persistence.repository.ChannelJpaRepository;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -44,5 +46,15 @@ public class ChannelRepositoryAdapter implements ChannelRepository {
   @Override
   public boolean existsByNickname(String nickname) {
     return jpa.existsByNickname(nickname);
+  }
+
+  @Override
+  public List<Channel> findByIds(Collection<UUID> ids) {
+    return jpa.findAllById(ids).stream().map(PersistenceMapper::toDomain).toList();
+  }
+
+  @Override
+  public List<Channel> findByUserIds(Collection<UUID> userIds) {
+    return jpa.findByUserIdIn(userIds).stream().map(PersistenceMapper::toDomain).toList();
   }
 }

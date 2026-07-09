@@ -1,18 +1,18 @@
 # phase-06-social — Progress
 
-**Status:** not started
-**SIs:** 0/8 completed
+**Status:** completed
+**SIs:** 8/8 completed
 
 | SI | Description | Status | Tests |
 |----|-------------|--------|-------|
-| SI-06.1 | Domain (Comment, ReactionType, Subscription + ports, counter accessors) | pending | |
-| SI-06.2 | Flyway V8 (4 tables + counter columns + indexes) | pending | |
-| SI-06.3 | Persistence (entities API-only, upserts, atomic counters) | pending | |
-| SI-06.4 | Use cases: video/comment reactions (+ myReaction no info) | pending | |
-| SI-06.5 | Use cases: comments (create/reply/list/delete) | pending | |
-| SI-06.6 | Use cases: subscriptions (subscribe/list/feed + channel page) | pending | |
-| SI-06.7 | Web (controllers, DTOs, security, Postman) | pending | |
-| SI-06.8 | Tests + docs + DoD | pending | |
+| SI-06.1 | Domain (Comment, ReactionType, Subscription + ports, counter accessors) | done | Video/Channel constructor ripple fixed in the same slice |
+| SI-06.2 | Flyway V8 (4 tables + counter columns + indexes) | done | applied by Testcontainers E2E |
+| SI-06.3 | Persistence (entities API-only, upserts, atomic counters) | done | social slice lives in `infrastructure.social`, registered only in the API bootstrap (worker untouched); counter moves gated by affected-row counts; `updatable = false` on all counters |
+| SI-06.4 | Use cases: video/comment reactions (+ myReaction no info) | done | SetVideoReactionUseCaseTest (published-only, draft 404/409) |
+| SI-06.5 | Use cases: comments (create/reply/list/delete) | done | CreateCommentUseCaseTest (reply-to-reply 400, cross-video parent 400, draft 409/404, blank 400), DeleteCommentUseCaseTest (author-only) |
+| SI-06.6 | Use cases: subscriptions (subscribe/list/feed + channel page) | done | SubscribeUseCaseTest (self 400, unknown 404) |
+| SI-06.7 | Web (controllers, DTOs, security, Postman) | done | only security change: `GET /api/v1/comments/**` permitAll; Postman "Social" folder (12 requests) |
+| SI-06.8 | Tests + docs + DoD | done | SocialE2ETest: reaction lifecycle with exact counters, comment thread + counter math on delete, comment reactions, subscription flow + feed |
 
 ## Notes
 

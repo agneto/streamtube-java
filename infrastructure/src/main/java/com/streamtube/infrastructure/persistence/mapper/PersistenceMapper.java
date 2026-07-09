@@ -35,7 +35,14 @@ public final class PersistenceMapper {
 
   public static ChannelEntity toEntity(Channel c) {
     return new ChannelEntity(
-        c.id(), c.userId(), c.name(), c.nickname(), c.description(), c.createdAt(), c.updatedAt());
+        c.id(),
+        c.userId(),
+        c.name(),
+        c.nickname(),
+        c.description(),
+        c.subscribersCount(),
+        c.createdAt(),
+        c.updatedAt());
   }
 
   public static Channel toDomain(ChannelEntity e) {
@@ -45,6 +52,7 @@ public final class PersistenceMapper {
         e.getName(),
         e.getNickname(),
         e.getDescription(),
+        e.getSubscribersCount(),
         e.getCreatedAt(),
         e.getUpdatedAt());
   }
@@ -112,6 +120,9 @@ public final class PersistenceMapper {
         v.visibility(),
         v.publishedAt(),
         v.viewsCount(),
+        v.likesCount(),
+        v.dislikesCount(),
+        v.commentsCount(),
         v.createdAt(),
         v.updatedAt());
   }
@@ -133,6 +144,9 @@ public final class PersistenceMapper {
         e.getVisibility(),
         e.getPublishedAt(),
         e.getViewsCount(),
+        e.getLikesCount(),
+        e.getDislikesCount(),
+        e.getCommentsCount(),
         e.getCreatedAt(),
         e.getUpdatedAt());
   }

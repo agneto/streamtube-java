@@ -29,5 +29,11 @@ public final class ChannelDtos {
 
   /** Public channel page header: no {@code userId} (that mapping is not public information). */
   public record PublicChannelResponse(
-      UUID id, String name, String nickname, String description, Instant createdAt) {}
+      UUID id,
+      String name,
+      String nickname,
+      String description,
+      long subscribersCount,
+      boolean subscribed,
+      Instant createdAt) {}
 }

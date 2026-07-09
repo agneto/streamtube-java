@@ -8,11 +8,12 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Read rule shared by info/stream/download: published videos (any visibility) are open to
- * everyone; drafts answer 404 to anyone but the owner, so their existence never leaks.
+ * Read rule shared by info/stream/download and the social read paths: published videos (any
+ * visibility) are open to everyone; drafts answer 404 to anyone but the owner, so their existence
+ * never leaks.
  */
 @Component
-class VideoViewAccess {
+public class VideoViewAccess {
 
   private final ChannelRepository channelRepository;
 
@@ -21,7 +22,7 @@ class VideoViewAccess {
   }
 
   /** {@code viewerUserId} is null for anonymous requests. */
-  void ensureViewable(Video video, UUID viewerUserId) {
+  public void ensureViewable(Video video, UUID viewerUserId) {
     if (video.isPublished()) {
       return;
     }

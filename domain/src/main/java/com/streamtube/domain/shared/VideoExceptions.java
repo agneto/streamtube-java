@@ -83,6 +83,15 @@ public final class VideoExceptions {
     }
   }
 
+  public static final class VideoNotPublishedException extends DomainException {
+    public VideoNotPublishedException() {
+      super(
+          "VIDEO_NOT_PUBLISHED",
+          "Interactions are only allowed on published videos",
+          DomainErrorType.CONFLICT);
+    }
+  }
+
   public static final class UnsupportedThumbnailTypeException extends DomainException {
     public UnsupportedThumbnailTypeException() {
       super(

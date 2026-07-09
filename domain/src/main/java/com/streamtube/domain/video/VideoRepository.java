@@ -30,4 +30,7 @@ public interface VideoRepository {
 
   /** Suggestions fallback (uncategorized base video): latest published + PUBLIC platform-wide. */
   List<Video> findLatestListed(UUID excludeId, int limit);
+
+  /** Subscribed-channels feed: published + PUBLIC videos of channels the user follows. */
+  PageResult<Video> findSubscriptionFeed(UUID userId, int page, int size);
 }
