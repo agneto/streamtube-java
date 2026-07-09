@@ -45,10 +45,11 @@ public final class VideoDtos {
       Instant publishedAt,
       String thumbnailUrl,
       Double durationSeconds,
+      long views,
       UUID channelId,
       Instant createdAt) {}
 
-  /** Listing item for channel video pages (owner panel and public channel page). */
+  /** Listing item for channel video pages (owner panel, public channel page) and suggestions. */
   public record VideoSummaryResponse(
       UUID id,
       String slug,
@@ -58,5 +59,6 @@ public final class VideoDtos {
       Instant publishedAt,
       String thumbnailUrl,
       Double durationSeconds,
+      long views,
       Instant createdAt) {}
 }

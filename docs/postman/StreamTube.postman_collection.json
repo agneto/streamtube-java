@@ -293,7 +293,7 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/stream", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "stream"] },
-            "description": "Retorna 302 com Location apontando para o MinIO. Para VER o 302, desligue 'Automatically follow redirects' em Settings."
+            "description": "Retorna 302 com Location apontando para o MinIO. Cada stream de vídeo PUBLICADO soma 1 em 'views' (sem dedup; preview de rascunho e download não contam). Para VER o 302, desligue 'Automatically follow redirects' em Settings."
           }
         },
         {
@@ -407,6 +407,37 @@
             "header": [],
             "url": { "raw": "{{baseUrl}}/api/v1/videos/{{videoId}}/thumbnail/complete", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{videoId}}", "thumbnail", "complete"] },
             "description": "Confirma que a imagem chegou no storage e troca a thumbnail do vídeo (409 se o objeto não existir; 422 se o vídeo não estiver READY)."
+          }
+        },
+        {
+          "name": "12. Vídeos relacionados (sugestões)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('lista de sugestões (publicados + PUBLIC, sem o próprio vídeo)', () => {",
+                  "  const items = pm.response.json();",
+                  "  pm.expect(items).to.be.an('array');",
+                  "  items.forEach(v => {",
+                  "    pm.expect(v.visibility).to.eql('PUBLIC');",
+                  "    pm.expect(v.publishedAt).to.not.eql(null);",
+                  "    pm.expect(v.slug).to.not.eql(pm.collectionVariables.get('slug'));",
+                  "    pm.expect(v.views).to.be.at.least(0);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/related?limit=10", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "related"], "query": [{ "key": "limit", "value": "10" }] },
+            "description": "Sugestões da página de visualização: mesma categoria, publicados + PUBLIC, sem o próprio vídeo, mais recentes primeiro (limit padrão 10, máx 20). Vídeo sem categoria → últimos publicados da plataforma."
           }
         }
       ]

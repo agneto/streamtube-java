@@ -104,7 +104,12 @@ Passo a passo com as regras de cada etapa:
    qualquer um que não seja o dono) até o dono chamar `publish`, que exige `READY` e é
    idempotente. `visibility` (`PUBLIC` | `UNLISTED`) decide exposição em listagens.
 6. **Consumo** — `info`/`stream`/`download` devolvem 302 para URLs pré-assinadas de leitura
-   (TTL 1h); o player faz streaming com range requests direto do storage.
+   (TTL 1h); o player faz streaming com range requests direto do storage. Cada `stream` de vídeo
+   **publicado** soma 1 em `views_count` com um único `UPDATE ... + 1` atômico (Fase 05) — preview
+   de rascunho pelo dono e downloads não contam, e não há dedup por sessão (reload conta de novo,
+   trade-off aceito). A página de visualização ainda tem `GET /videos/{slug}/related`: sugestões
+   da mesma categoria, publicadas + `PUBLIC`, mais recentes primeiro (fallback: últimos publicados
+   da plataforma quando o vídeo não tem categoria).
 
 ---
 

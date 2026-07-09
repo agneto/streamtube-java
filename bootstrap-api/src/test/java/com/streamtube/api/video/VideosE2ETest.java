@@ -406,6 +406,116 @@ class VideosE2ETest {
   }
 
   @Test
+  void streamCountsViewsOnlyForPublishedVideos() throws Exception {
+    String token = registerConfirmLogin("views@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Com views"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String slug = init.get("slug").asText();
+    markReady(slug);
+
+    // the owner previewing the draft plays it, but is not audience
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug + "/stream").header("Authorization", "Bearer " + token))
+        .andExpect(status().isFound());
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug).header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.views").value(0));
+
+    mockMvc
+        .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.views").value(0));
+
+    // each published stream counts (no dedup by design: reloads count again)
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/stream")).andExpect(status().isFound());
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/stream")).andExpect(status().isFound());
+    // downloads are not views
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/download")).andExpect(status().isFound());
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.views").value(2));
+  }
+
+  @Test
+  void relatedVideosAreSameCategoryPublishedPublicOnly() throws Exception {
+    String token = registerConfirmLogin("related@test.com");
+    JsonNode categories =
+        readJson(mockMvc.perform(get("/api/v1/categories")).andExpect(status().isOk()));
+    String categoryA = categories.get(0).get("id").asText();
+    String categoryB = categories.get(1).get("id").asText();
+
+    String baseSlug = createCategorizedVideo(token, "Base", categoryA, null, true);
+    String sameCategory = createCategorizedVideo(token, "Sugestão", categoryA, null, true);
+    createCategorizedVideo(token, "Unlisted", categoryA, "UNLISTED", true); // never suggested
+    String draftSlug = createCategorizedVideo(token, "Draft", categoryA, null, false);
+    createCategorizedVideo(token, "Outra categoria", categoryB, null, true);
+
+    JsonNode related =
+        readJson(
+            mockMvc
+                .perform(get("/api/v1/videos/" + baseSlug + "/related"))
+                .andExpect(status().isOk()));
+    assertThat(related.findValuesAsText("slug")).containsExactly(sameCategory);
+    assertThat(related.get(0).get("views").asLong()).isZero();
+
+    // the base video itself follows the read rule: draft -> 404 for non-owners
+    mockMvc.perform(get("/api/v1/videos/" + draftSlug + "/related")).andExpect(status().isNotFound());
+
+    // limit is validated/clamped, never a 500
+    mockMvc
+        .perform(get("/api/v1/videos/" + baseSlug + "/related").param("limit", "50"))
+        .andExpect(status().isOk());
+  }
+
+  /** Initiates a video, assigns a category (and visibility), marks READY and optionally publishes. */
+  private String createCategorizedVideo(
+      String token, String title, String categoryId, String visibility, boolean publish)
+      throws Exception {
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody(title))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String slug = init.get("slug").asText();
+
+    Map<String, Object> patch = new java.util.HashMap<>();
+    patch.put("categoryId", categoryId);
+    if (visibility != null) {
+      patch.put("visibility", visibility);
+    }
+    mockMvc
+        .perform(
+            patch("/api/v1/videos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(patch)))
+        .andExpect(status().isOk());
+
+    markReady(slug);
+    if (publish) {
+      mockMvc
+          .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+          .andExpect(status().isOk());
+    }
+    return slug;
+  }
+
+  @Test
   void categoriesArePublic() throws Exception {
     mockMvc
         .perform(get("/api/v1/categories"))

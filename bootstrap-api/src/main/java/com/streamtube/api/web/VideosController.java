@@ -6,9 +6,11 @@ import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadRequest;
 import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadResponse;
 import com.streamtube.api.web.dto.VideoDtos.UpdateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.VideoInfoResponse;
+import com.streamtube.api.web.dto.VideoDtos.VideoSummaryResponse;
 import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
 import com.streamtube.application.video.CompleteUploadUseCase;
 import com.streamtube.application.video.GetDownloadUrlUseCase;
+import com.streamtube.application.video.GetRelatedVideosUseCase;
 import com.streamtube.application.video.GetStreamUrlUseCase;
 import com.streamtube.application.video.GetVideoInfoUseCase;
 import com.streamtube.application.video.InitiateThumbnailUploadUseCase;
@@ -17,11 +19,13 @@ import com.streamtube.application.video.PublishVideoUseCase;
 import com.streamtube.application.video.UpdateVideoDetailsUseCase;
 import com.streamtube.application.video.result.InitiateUploadResult;
 import com.streamtube.application.video.result.VideoInfoView;
+import com.streamtube.application.video.result.VideoSummaryView;
 import com.streamtube.infrastructure.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +36,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -49,6 +54,7 @@ public class VideosController {
   private final PublishVideoUseCase publishVideo;
   private final InitiateThumbnailUploadUseCase initiateThumbnailUpload;
   private final CompleteThumbnailUploadUseCase completeThumbnailUpload;
+  private final GetRelatedVideosUseCase getRelatedVideos;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -59,7 +65,8 @@ public class VideosController {
       UpdateVideoDetailsUseCase updateVideoDetails,
       PublishVideoUseCase publishVideo,
       InitiateThumbnailUploadUseCase initiateThumbnailUpload,
-      CompleteThumbnailUploadUseCase completeThumbnailUpload) {
+      CompleteThumbnailUploadUseCase completeThumbnailUpload,
+      GetRelatedVideosUseCase getRelatedVideos) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
@@ -69,6 +76,7 @@ public class VideosController {
     this.publishVideo = publishVideo;
     this.initiateThumbnailUpload = initiateThumbnailUpload;
     this.completeThumbnailUpload = completeThumbnailUpload;
+    this.getRelatedVideos = getRelatedVideos;
   }
 
   @PostMapping
@@ -139,6 +147,17 @@ public class VideosController {
     return toResponse(getVideoInfo.execute(slug, viewerId(principal)));
   }
 
+  @GetMapping("/{slug}/related")
+  @Operation(summary = "Watch-page suggestions: same-category published PUBLIC videos")
+  public List<VideoSummaryResponse> related(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("slug") String slug,
+      @RequestParam(name = "limit", defaultValue = "10") int limit) {
+    return getRelatedVideos.execute(slug, viewerId(principal), limit).stream()
+        .map(VideosController::toSummary)
+        .toList();
+  }
+
   @GetMapping("/{slug}/stream")
   @Operation(summary = "Redirect (302) to a presigned streaming URL")
   public ResponseEntity<Void> stream(
@@ -174,7 +193,22 @@ public class VideosController {
         v.publishedAt(),
         v.thumbnailUrl(),
         v.durationSeconds(),
+        v.views(),
         v.channelId(),
+        v.createdAt());
+  }
+
+  private static VideoSummaryResponse toSummary(VideoSummaryView v) {
+    return new VideoSummaryResponse(
+        v.id(),
+        v.slug(),
+        v.title(),
+        v.status(),
+        v.visibility(),
+        v.publishedAt(),
+        v.thumbnailUrl(),
+        v.durationSeconds(),
+        v.views(),
         v.createdAt());
   }
 }

@@ -96,6 +96,7 @@ public class ChannelsController {
         v.publishedAt(),
         v.thumbnailUrl(),
         v.durationSeconds(),
+        v.views(),
         v.createdAt());
   }
 

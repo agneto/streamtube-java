@@ -62,7 +62,7 @@ class CompleteUploadUseCaseTest {
   private Video video(UUID owningChannel, VideoStatus status) {
     return new Video(
         videoId, owningChannel, "T", "slug123", status, "videos/slug123", null, null, null, null,
-        null, null, Visibility.PUBLIC, null, NOW, NOW);
+        null, null, Visibility.PUBLIC, null, 0L, NOW, NOW);
   }
 
   @Test

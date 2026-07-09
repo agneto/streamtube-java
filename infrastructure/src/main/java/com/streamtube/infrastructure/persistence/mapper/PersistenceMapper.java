@@ -111,6 +111,7 @@ public final class PersistenceMapper {
         v.categoryId(),
         v.visibility(),
         v.publishedAt(),
+        v.viewsCount(),
         v.createdAt(),
         v.updatedAt());
   }
@@ -131,6 +132,7 @@ public final class PersistenceMapper {
         e.getCategoryId(),
         e.getVisibility(),
         e.getPublishedAt(),
+        e.getViewsCount(),
         e.getCreatedAt(),
         e.getUpdatedAt());
   }
