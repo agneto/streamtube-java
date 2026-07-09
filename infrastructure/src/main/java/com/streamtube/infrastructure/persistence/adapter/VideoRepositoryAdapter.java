@@ -7,6 +7,7 @@ import com.streamtube.domain.video.Visibility;
 import com.streamtube.infrastructure.persistence.entity.VideoEntity;
 import com.streamtube.infrastructure.persistence.mapper.PersistenceMapper;
 import com.streamtube.infrastructure.persistence.repository.VideoJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -57,6 +58,31 @@ public class VideoRepositoryAdapter implements VideoRepository {
             channelId, Visibility.PUBLIC, PageRequest.of(page, size)),
         page,
         size);
+  }
+
+  @Override
+  public void incrementViews(UUID id) {
+    jpa.incrementViews(id);
+  }
+
+  @Override
+  public List<Video> findRelatedByCategory(UUID categoryId, UUID excludeId, int limit) {
+    return jpa
+        .findByCategoryIdAndIdNotAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+            categoryId, excludeId, Visibility.PUBLIC, PageRequest.of(0, limit))
+        .stream()
+        .map(PersistenceMapper::toDomain)
+        .toList();
+  }
+
+  @Override
+  public List<Video> findLatestListed(UUID excludeId, int limit) {
+    return jpa
+        .findByIdNotAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+            excludeId, Visibility.PUBLIC, PageRequest.of(0, limit))
+        .stream()
+        .map(PersistenceMapper::toDomain)
+        .toList();
   }
 
   private static PageResult<Video> toPageResult(Page<VideoEntity> result, int page, int size) {

@@ -31,6 +31,7 @@ public class Video {
   private UUID categoryId;
   private Visibility visibility;
   private Instant publishedAt;
+  private final long viewsCount;
   private final Instant createdAt;
   private Instant updatedAt;
 
@@ -49,6 +50,7 @@ public class Video {
       UUID categoryId,
       Visibility visibility,
       Instant publishedAt,
+      long viewsCount,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -65,6 +67,7 @@ public class Video {
     this.categoryId = categoryId;
     this.visibility = visibility;
     this.publishedAt = publishedAt;
+    this.viewsCount = viewsCount;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -74,7 +77,7 @@ public class Video {
       UUID id, UUID channelId, String title, String slug, String storageKey, Instant now) {
     return new Video(
         id, channelId, title, slug, VideoStatus.PENDING_UPLOAD, storageKey, null, null, null, null,
-        null, null, Visibility.PUBLIC, null, now, now);
+        null, null, Visibility.PUBLIC, null, 0L, now, now);
   }
 
   /**
@@ -226,6 +229,15 @@ public class Video {
 
   public Instant publishedAt() {
     return publishedAt;
+  }
+
+  /**
+   * Total playback views. Read-only here: increments are an atomic SQL operation behind the
+   * repository port, or concurrent viewers would lose updates. No dedup by design — reloads count
+   * again.
+   */
+  public long viewsCount() {
+    return viewsCount;
   }
 
   public Instant createdAt() {
