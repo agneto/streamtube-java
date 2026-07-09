@@ -42,7 +42,7 @@ sequenceDiagram
     W->>DB: UPDATE → READY (duração, thumbnail, metadata)
 
     Note over C,API: Passo 5 — publicação (Fase 04)
-    C->>API: POST /api/v1/videos/{id}/publish (dono; exige READY)
+    C->>API: POST /api/v1/videos/{id}/publish (dono, exige READY)
     API->>DB: UPDATE video → published_at = now()
     API-->>C: 200 (antes disso, leituras respondem 404 para não-donos)
 

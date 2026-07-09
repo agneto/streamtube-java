@@ -34,7 +34,7 @@ O status acima é o **ciclo de processamento**. A **publicação** é um eixo se
 ```mermaid
 stateDiagram-v2
     [*] --> Rascunho: initiate (visibility=PUBLIC)
-    Rascunho --> Publicado: publish<br/>(exige status READY; 422 antes)
+    Rascunho --> Publicado: publish<br/>(exige status READY, 422 antes)
     Publicado --> Publicado: republish é no-op
     state Publicado {
         PUBLIC --> UNLISTED: PATCH visibility

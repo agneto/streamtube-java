@@ -73,7 +73,7 @@ sequenceDiagram
     W->>S3: PUT thumbnails/{slug}.jpg
     W->>DB: UPDATE → READY (duração, metadata jsonb, thumbnail)
 
-    C->>API: POST /api/v1/videos/{id}/publish (dono; exige READY)
+    C->>API: POST /api/v1/videos/{id}/publish (dono, exige READY)
     API->>DB: UPDATE → published_at = now()
     C->>API: GET /api/v1/videos/{slug}/stream (qualquer um)
     API-->>C: 302 Location: URL presignada (TTL 1h)
