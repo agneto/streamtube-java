@@ -203,6 +203,15 @@ erDiagram
     categories |o--o{ videos : "0:N"
     users ||--o{ refresh_tokens : ""
     users ||--o{ verification_tokens : ""
+    users ||--o{ video_reactions : ""
+    users ||--o{ comments : ""
+    users ||--o{ comment_reactions : ""
+    users ||--o{ subscriptions : "segue"
+    channels ||--o{ subscriptions : "seguido por"
+    videos ||--o{ video_reactions : ""
+    videos ||--o{ comments : ""
+    comments |o--o{ comments : "respostas (1 nível)"
+    comments ||--o{ comment_reactions : ""
 
     videos {
         uuid id PK
@@ -216,6 +225,10 @@ erDiagram
         uuid category_id FK
         varchar visibility "PUBLIC | UNLISTED"
         timestamptz published_at "null = rascunho"
+        bigint views_count "contador atômico"
+        bigint likes_count "contador atômico"
+        bigint dislikes_count "contador atômico"
+        bigint comments_count "raiz + respostas"
     }
 ```
 
@@ -223,14 +236,25 @@ erDiagram
 `(channel_id, published_at DESC) WHERE visibility='PUBLIC' AND published_at IS NOT NULL` para a
 página pública do canal — o índice só contém exatamente as linhas que a query pública lê.
 
+**Contadores desnormalizados (Fases 05–06):** as tabelas normalizadas (`video_reactions`,
+`comment_reactions`, `comments`, `subscriptions`) são a fonte da verdade — PK composta
+`(user_id, alvo)` torna duplo-like/dupla-inscrição impossível. Os contadores (`views_count`,
+`likes_count`, `dislikes_count`, `comments_count`, `subscribers_count`) movem-se **somente** por
+`UPDATE ... ± 1` atômico, na mesma transação da mudança da linha-fonte e condicionado ao
+row-count do statement que mudou a linha (um `ON CONFLICT DO NOTHING` que não inseriu não
+incrementa). Nas entities JPA os contadores são `updatable = false`: um `save()` comum nunca
+reescreve o valor com um snapshot velho. A camada social é **exclusiva da API** — o worker não
+mapeia essas tabelas.
+
 ---
 
 ## 5. Segurança (resumo)
 
 - **JWT stateless** (access curto + refresh com rotação e detecção de reuso por família).
 - Allowlist explícita: tudo exige auth por padrão; leituras públicas liberadas uma a uma
-  (`GET /videos/**`, `GET /categories`, `GET /channels/**` — com `/channels/me/**` autenticado
-  **antes** na cadeia).
+  (`GET /videos/**`, `GET /categories`, `GET /comments/**`, `GET /channels/**` — com
+  `/channels/me/**` autenticado **antes** na cadeia). Escritas sociais (reações, comentários,
+  inscrições) caem no default autenticado.
 - **Rate limiting** por IP (token bucket, 10 req/min) nos endpoints de auth.
 - Autorização de escrita sempre no use case (dono do recurso), com corridas de unicidade
   (email, nickname) resolvidas por constraint do banco traduzida para 409.

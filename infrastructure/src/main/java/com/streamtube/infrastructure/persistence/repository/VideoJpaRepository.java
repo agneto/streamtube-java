@@ -36,4 +36,18 @@ public interface VideoJpaRepository extends JpaRepository<VideoEntity, UUID> {
 
   List<VideoEntity> findByIdNotAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
       UUID excludeId, Visibility visibility, Pageable pageable);
+
+  // Native on purpose: JPQL against SubscriptionEntity would break the worker's bootstrap (its
+  // persistence unit does not map the social entities); native SQL is not validated at startup.
+  @Query(
+      value =
+          "select v.* from videos v join subscriptions s on s.channel_id = v.channel_id"
+              + " where s.user_id = :userId and v.visibility = 'PUBLIC'"
+              + " and v.published_at is not null order by v.published_at desc",
+      countQuery =
+          "select count(*) from videos v join subscriptions s on s.channel_id = v.channel_id"
+              + " where s.user_id = :userId and v.visibility = 'PUBLIC'"
+              + " and v.published_at is not null",
+      nativeQuery = true)
+  Page<VideoEntity> findSubscriptionFeed(@Param("userId") UUID userId, Pageable pageable);
 }

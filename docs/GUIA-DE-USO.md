@@ -159,6 +159,24 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 | GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
 | GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
+### Interações sociais (Fase 06)
+
+| Método | Caminho | Autenticação | O que faz |
+|--------|---------|--------------|-----------|
+| PUT / DELETE | `/api/v1/videos/{id}/reaction` | autenticada | Define/troca (`LIKE` \| `DISLIKE`) ou remove a minha reação (vídeo publicado) |
+| POST | `/api/v1/videos/{id}/comments` | autenticada | Comenta; `parentId` opcional = resposta de 1 nível |
+| GET | `/api/v1/videos/{slug}/comments` | pública | Comentários raiz, mais recentes primeiro |
+| GET | `/api/v1/comments/{id}/replies` | pública | Respostas, mais antigas primeiro |
+| DELETE | `/api/v1/comments/{id}` | autenticada (autor) | Apaga o comentário (respostas caem junto) |
+| PUT / DELETE | `/api/v1/comments/{id}/reaction` | autenticada | Reação no comentário |
+| PUT / DELETE | `/api/v1/channels/{nickname}/subscription` | autenticada | Inscreve/cancela (idempotente; o próprio canal dá 400) |
+| GET | `/api/v1/subscriptions` | autenticada | Canais que sigo |
+| GET | `/api/v1/subscriptions/videos` | autenticada | Feed: últimos vídeos publicados dos canais que sigo |
+
+A lista completa (incl. edição de vídeo/canal, publish, thumbnails, categorias e páginas de
+canal das Fases 04–05) está no Swagger (`http://localhost:8080/swagger-ui.html`) e na coleção
+Postman (`docs/postman/`).
+
 > Os campos de token no JSON usam *snake_case*: `access_token`, `refresh_token`,
 > `token_type`, `expires_in` (para bater com o contrato do backend de referência).
 

@@ -24,6 +24,11 @@ public class ChannelEntity {
 
   @Column private String description;
 
+  // updatable = false: only the atomic "subscribers_count ± 1" statements (social slice) may
+  // change the counter — a regular save() flushing a stale value would erase concurrent updates.
+  @Column(name = "subscribers_count", nullable = false, updatable = false)
+  private long subscribersCount;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -38,6 +43,7 @@ public class ChannelEntity {
       String name,
       String nickname,
       String description,
+      long subscribersCount,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -45,6 +51,7 @@ public class ChannelEntity {
     this.name = name;
     this.nickname = nickname;
     this.description = description;
+    this.subscribersCount = subscribersCount;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -67,6 +74,10 @@ public class ChannelEntity {
 
   public String getDescription() {
     return description;
+  }
+
+  public long getSubscribersCount() {
+    return subscribersCount;
   }
 
   public Instant getCreatedAt() {

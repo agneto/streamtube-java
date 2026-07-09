@@ -9,6 +9,7 @@ import com.streamtube.application.video.result.VideoInfoView;
 import com.streamtube.domain.channel.Channel;
 import com.streamtube.domain.channel.ChannelRepository;
 import com.streamtube.domain.shared.VideoExceptions.VideoNotFoundException;
+import com.streamtube.domain.social.VideoReactionRepository;
 import com.streamtube.domain.video.Video;
 import com.streamtube.domain.video.VideoRepository;
 import com.streamtube.domain.video.Visibility;
@@ -35,7 +36,12 @@ class GetVideoInfoUseCaseTest {
     videos = Mockito.mock(VideoRepository.class);
     channels = Mockito.mock(ChannelRepository.class);
     StoragePort storage = Mockito.mock(StoragePort.class);
-    useCase = new GetVideoInfoUseCase(videos, storage, new VideoViewAccess(channels));
+    useCase =
+        new GetVideoInfoUseCase(
+            videos,
+            storage,
+            new VideoViewAccess(channels),
+            Mockito.mock(VideoReactionRepository.class));
 
     ownerUserId = UUID.randomUUID();
     channelId = UUID.randomUUID();

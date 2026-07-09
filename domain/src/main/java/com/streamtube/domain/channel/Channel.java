@@ -13,6 +13,7 @@ public class Channel {
   private String name;
   private String nickname;
   private String description;
+  private final long subscribersCount;
   private final Instant createdAt;
   private Instant updatedAt;
 
@@ -22,6 +23,7 @@ public class Channel {
       String name,
       String nickname,
       String description,
+      long subscribersCount,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -29,6 +31,7 @@ public class Channel {
     this.name = name;
     this.nickname = nickname;
     this.description = description;
+    this.subscribersCount = subscribersCount;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -36,7 +39,7 @@ public class Channel {
   /** Factory for the channel auto-created when a user registers. */
   public static Channel createForUser(
       UUID id, UUID userId, String name, String nickname, Instant now) {
-    return new Channel(id, userId, name, nickname, null, now, now);
+    return new Channel(id, userId, name, nickname, null, 0L, now, now);
   }
 
   /**
@@ -91,6 +94,14 @@ public class Channel {
 
   public String description() {
     return description;
+  }
+
+  /**
+   * Subscriber counter — read-only here: it only moves via atomic SQL behind the subscription
+   * repository, in the same transaction as the subscription row change.
+   */
+  public long subscribersCount() {
+    return subscribersCount;
   }
 
   public Instant createdAt() {

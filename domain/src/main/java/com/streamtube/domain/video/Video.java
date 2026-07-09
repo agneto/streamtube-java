@@ -32,6 +32,9 @@ public class Video {
   private Visibility visibility;
   private Instant publishedAt;
   private final long viewsCount;
+  private final long likesCount;
+  private final long dislikesCount;
+  private final long commentsCount;
   private final Instant createdAt;
   private Instant updatedAt;
 
@@ -51,6 +54,9 @@ public class Video {
       Visibility visibility,
       Instant publishedAt,
       long viewsCount,
+      long likesCount,
+      long dislikesCount,
+      long commentsCount,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -68,6 +74,9 @@ public class Video {
     this.visibility = visibility;
     this.publishedAt = publishedAt;
     this.viewsCount = viewsCount;
+    this.likesCount = likesCount;
+    this.dislikesCount = dislikesCount;
+    this.commentsCount = commentsCount;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -77,7 +86,7 @@ public class Video {
       UUID id, UUID channelId, String title, String slug, String storageKey, Instant now) {
     return new Video(
         id, channelId, title, slug, VideoStatus.PENDING_UPLOAD, storageKey, null, null, null, null,
-        null, null, Visibility.PUBLIC, null, 0L, now, now);
+        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, now, now);
   }
 
   /**
@@ -238,6 +247,19 @@ public class Video {
    */
   public long viewsCount() {
     return viewsCount;
+  }
+
+  /** Like/dislike/comment counters — read-only here, same atomic-SQL rule as {@link #viewsCount}. */
+  public long likesCount() {
+    return likesCount;
+  }
+
+  public long dislikesCount() {
+    return dislikesCount;
+  }
+
+  public long commentsCount() {
+    return commentsCount;
   }
 
   public Instant createdAt() {

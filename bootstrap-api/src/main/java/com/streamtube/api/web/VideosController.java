@@ -4,9 +4,17 @@ import com.streamtube.api.web.dto.VideoDtos.CreateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.InitiateUploadResponse;
 import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadRequest;
 import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadResponse;
+import com.streamtube.api.web.dto.PageResponse;
+import com.streamtube.api.web.dto.SocialDtos.CommentResponse;
+import com.streamtube.api.web.dto.SocialDtos.CreateCommentRequest;
+import com.streamtube.api.web.dto.SocialDtos.ReactionRequest;
 import com.streamtube.api.web.dto.VideoDtos.UpdateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.VideoInfoResponse;
 import com.streamtube.api.web.dto.VideoDtos.VideoSummaryResponse;
+import com.streamtube.application.social.CreateCommentUseCase;
+import com.streamtube.application.social.ListCommentsUseCase;
+import com.streamtube.application.social.RemoveVideoReactionUseCase;
+import com.streamtube.application.social.SetVideoReactionUseCase;
 import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
 import com.streamtube.application.video.CompleteUploadUseCase;
 import com.streamtube.application.video.GetDownloadUrlUseCase;
@@ -30,10 +38,12 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -55,6 +65,10 @@ public class VideosController {
   private final InitiateThumbnailUploadUseCase initiateThumbnailUpload;
   private final CompleteThumbnailUploadUseCase completeThumbnailUpload;
   private final GetRelatedVideosUseCase getRelatedVideos;
+  private final SetVideoReactionUseCase setVideoReaction;
+  private final RemoveVideoReactionUseCase removeVideoReaction;
+  private final CreateCommentUseCase createComment;
+  private final ListCommentsUseCase listComments;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -66,7 +80,11 @@ public class VideosController {
       PublishVideoUseCase publishVideo,
       InitiateThumbnailUploadUseCase initiateThumbnailUpload,
       CompleteThumbnailUploadUseCase completeThumbnailUpload,
-      GetRelatedVideosUseCase getRelatedVideos) {
+      GetRelatedVideosUseCase getRelatedVideos,
+      SetVideoReactionUseCase setVideoReaction,
+      RemoveVideoReactionUseCase removeVideoReaction,
+      CreateCommentUseCase createComment,
+      ListCommentsUseCase listComments) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
@@ -77,6 +95,10 @@ public class VideosController {
     this.initiateThumbnailUpload = initiateThumbnailUpload;
     this.completeThumbnailUpload = completeThumbnailUpload;
     this.getRelatedVideos = getRelatedVideos;
+    this.setVideoReaction = setVideoReaction;
+    this.removeVideoReaction = removeVideoReaction;
+    this.createComment = createComment;
+    this.listComments = listComments;
   }
 
   @PostMapping
@@ -147,6 +169,46 @@ public class VideosController {
     return toResponse(getVideoInfo.execute(slug, viewerId(principal)));
   }
 
+  @PutMapping("/{id}/reaction")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Set/switch my reaction on a published video (LIKE | DISLIKE)")
+  public void react(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody ReactionRequest request) {
+    setVideoReaction.execute(id, principal.id(), request.type());
+  }
+
+  @DeleteMapping("/{id}/reaction")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Remove my reaction from a published video (idempotent)")
+  public void unreact(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    removeVideoReaction.execute(id, principal.id());
+  }
+
+  @PostMapping("/{id}/comments")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Comment on a published video (parentId = single-level reply)")
+  public CommentResponse comment(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody CreateCommentRequest request) {
+    return SocialResponses.toComment(
+        createComment.execute(id, principal.id(), request.content(), request.parentId()));
+  }
+
+  @GetMapping("/{slug}/comments")
+  @Operation(summary = "Top-level comments of a video, newest first (public)")
+  public PageResponse<CommentResponse> comments(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("slug") String slug,
+      @RequestParam(name = "page", defaultValue = "0") int page,
+      @RequestParam(name = "size", defaultValue = "20") int size) {
+    return PageResponse.from(
+        listComments.execute(slug, viewerId(principal), page, size), SocialResponses::toComment);
+  }
+
   @GetMapping("/{slug}/related")
   @Operation(summary = "Watch-page suggestions: same-category published PUBLIC videos")
   public List<VideoSummaryResponse> related(
@@ -194,6 +256,10 @@ public class VideosController {
         v.thumbnailUrl(),
         v.durationSeconds(),
         v.views(),
+        v.likes(),
+        v.dislikes(),
+        v.commentsCount(),
+        v.myReaction(),
         v.channelId(),
         v.createdAt());
   }

@@ -37,8 +37,8 @@ class UpdateChannelInfoUseCaseTest {
         .thenReturn(
             Optional.of(
                 new Channel(
-                    UUID.randomUUID(), userId, "Original", "nick_original", "desc antiga", NOW,
-                    NOW)));
+                    UUID.randomUUID(), userId, "Original", "nick_original", "desc antiga", 0L,
+                    NOW, NOW)));
     when(channels.save(any())).thenAnswer(inv -> inv.getArgument(0));
   }
 
