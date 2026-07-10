@@ -748,6 +748,100 @@
           }
         }
       ]
+    },
+    {
+      "name": "Home & Busca",
+      "item": [
+        {
+          "name": "1. Home (grid de vídeos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('cards com canal, views e publishedAt', () => {",
+                  "  pm.response.json().items.forEach(v => {",
+                  "    pm.expect(v.channel.nickname).to.be.a('string');",
+                  "    pm.expect(v.views).to.be.at.least(0);",
+                  "    pm.expect(v.publishedAt).to.not.eql(null);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Grid da home: publicados + PUBLIC da plataforma inteira, mais recentes primeiro. Cada card traz thumbnail, título, canal (id/name/nickname), views e publishedAt."
+          }
+        },
+        {
+          "name": "2. Home filtrada por categoria",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.code === 200);"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos?categoryId={{categoryId}}&page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos"], "query": [{ "key": "categoryId", "value": "{{categoryId}}" }, { "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Mesmo grid filtrado por categoria ('GET /categories' preenche {{categoryId}}). Categoria desconhecida devolve página vazia, não erro."
+          }
+        },
+        {
+          "name": "3. Busca (título ou canal)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('só publicados PUBLIC', () => {",
+                  "  pm.response.json().items.forEach(v => pm.expect(v.publishedAt).to.not.eql(null));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/search?q=video&page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "search"], "query": [{ "key": "q", "value": "video" }, { "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Contains case-insensitive no TÍTULO do vídeo ou no NOME do canal; só publicados + PUBLIC, mais recentes primeiro. q mínimo de 2 caracteres (400 INVALID_SEARCH_QUERY). % e _ são tratados como texto literal."
+          }
+        },
+        {
+          "name": "4. Busca com q curto (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 Bad Request', () => pm.response.code === 400);",
+                  "pm.test('code INVALID_SEARCH_QUERY', () => pm.response.json().code === 'INVALID_SEARCH_QUERY');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/search?q=a", "host": ["{{baseUrl}}"], "path": ["api", "v1", "search"], "query": [{ "key": "q", "value": "a" }] }
+          }
+        }
+      ]
     }
   ]
 }

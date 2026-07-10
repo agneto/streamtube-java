@@ -1,17 +1,17 @@
 # phase-07-home — Progress
 
-**Status:** not started
-**SIs:** 0/7 completed
+**Status:** completed
+**SIs:** 7/7 completed
 
 | SI | Description | Status | Tests |
 |----|-------------|--------|-------|
-| SI-07.1 | Domain (listing/search port methods, InvalidSearchQueryException) | pending | |
-| SI-07.2 | Flyway V9 (pg_trgm + trigram GIN + partial home index) | pending | |
-| SI-07.3 | Persistence (global listing + title/channel search queries) | pending | |
-| SI-07.4 | Use cases (home grid, search, VideoCardView batch assembly) | pending | |
-| SI-07.5 | Web (GET /videos, SearchController, security, Postman) | pending | |
-| SI-07.6 | Prod (compose.prod.yaml + docs/deploy.md) | pending | |
-| SI-07.7 | Tests + docs + DoD | pending | |
+| SI-07.1 | Domain (listing/search port methods, InvalidSearchQueryException) | done | no entity changes, as planned (ADV-07 held) |
+| SI-07.2 | Flyway V9 (pg_trgm + trigram GIN + partial home index) | done | applied by Testcontainers E2E |
+| SI-07.3 | Persistence (global listing + title/channel search queries) | done | search re-applies the listing rule in-query; `%`/`_`/`!` escaped in the adapter (`escape '!'`) |
+| SI-07.4 | Use cases (home grid, search, VideoCardView batch assembly) | done | SearchVideosUseCaseTest (trim + min 2 chars), ListHomeVideosUseCaseTest (category pass-through, one batch channel lookup) |
+| SI-07.5 | Web (GET /videos, SearchController, security, Postman) | done | `GET /api/v1/search` permitAll; Postman "Home & Busca" (4 requests) |
+| SI-07.6 | Prod (compose.prod.yaml + docs/deploy.md) | done | fail-fast validated: `config` aborts without secrets; only 8080/9000 published; mailpit off via profile |
+| SI-07.7 | Tests + docs + DoD | done | E2E: homeGridListsOnlyPublishedPublicNewestFirst, searchMatchesTitleOrChannelNameOfListedVideosOnly (incl. `%` literal) |
 
 ## Notes
 

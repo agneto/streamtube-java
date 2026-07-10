@@ -33,4 +33,10 @@ public interface VideoRepository {
 
   /** Subscribed-channels feed: published + PUBLIC videos of channels the user follows. */
   PageResult<Video> findSubscriptionFeed(UUID userId, int page, int size);
+
+  /** Home grid: published + PUBLIC platform-wide, newest first; {@code categoryId} optional. */
+  PageResult<Video> findListedPage(UUID categoryId, int page, int size);
+
+  /** Search: published + PUBLIC whose title or owning channel's name contains {@code query}. */
+  PageResult<Video> searchListed(String query, int page, int size);
 }

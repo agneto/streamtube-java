@@ -9,6 +9,7 @@ import com.streamtube.api.web.dto.SocialDtos.CommentResponse;
 import com.streamtube.api.web.dto.SocialDtos.CreateCommentRequest;
 import com.streamtube.api.web.dto.SocialDtos.ReactionRequest;
 import com.streamtube.api.web.dto.VideoDtos.UpdateVideoRequest;
+import com.streamtube.api.web.dto.VideoDtos.VideoCardResponse;
 import com.streamtube.api.web.dto.VideoDtos.VideoInfoResponse;
 import com.streamtube.api.web.dto.VideoDtos.VideoSummaryResponse;
 import com.streamtube.application.social.CreateCommentUseCase;
@@ -16,6 +17,7 @@ import com.streamtube.application.social.ListCommentsUseCase;
 import com.streamtube.application.social.RemoveVideoReactionUseCase;
 import com.streamtube.application.social.SetVideoReactionUseCase;
 import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
+import com.streamtube.application.video.ListHomeVideosUseCase;
 import com.streamtube.application.video.CompleteUploadUseCase;
 import com.streamtube.application.video.GetDownloadUrlUseCase;
 import com.streamtube.application.video.GetRelatedVideosUseCase;
@@ -69,6 +71,7 @@ public class VideosController {
   private final RemoveVideoReactionUseCase removeVideoReaction;
   private final CreateCommentUseCase createComment;
   private final ListCommentsUseCase listComments;
+  private final ListHomeVideosUseCase listHomeVideos;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -84,7 +87,8 @@ public class VideosController {
       SetVideoReactionUseCase setVideoReaction,
       RemoveVideoReactionUseCase removeVideoReaction,
       CreateCommentUseCase createComment,
-      ListCommentsUseCase listComments) {
+      ListCommentsUseCase listComments,
+      ListHomeVideosUseCase listHomeVideos) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
@@ -99,6 +103,17 @@ public class VideosController {
     this.removeVideoReaction = removeVideoReaction;
     this.createComment = createComment;
     this.listComments = listComments;
+    this.listHomeVideos = listHomeVideos;
+  }
+
+  @GetMapping
+  @Operation(summary = "Home grid: published PUBLIC videos, newest first, optional category")
+  public PageResponse<VideoCardResponse> list(
+      @RequestParam(name = "categoryId", required = false) UUID categoryId,
+      @RequestParam(name = "page", defaultValue = "0") int page,
+      @RequestParam(name = "size", defaultValue = "20") int size) {
+    return PageResponse.from(
+        listHomeVideos.execute(categoryId, page, size), VideoCardResponses::from);
   }
 
   @PostMapping
