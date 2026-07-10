@@ -1,0 +1,80 @@
+# Production override. Usage:
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# Every secret is REQUIRED (${VAR:?...}): booting production without them aborts immediately —
+# the dev defaults from compose.yaml/application.yml never leak into prod. Postgres, RabbitMQ and
+# the MinIO console lose their host ports (`!reset`, needs docker compose >= 2.24); only the API
+# (8080) and the storage endpoint (9000, presigned URLs are consumed directly by clients) stay
+# exposed — put your TLS-terminating proxy in front of both. Mailpit does not start: MAIL_* must
+# point at a real SMTP relay.
+
+services:
+  api:
+    restart: unless-stopped
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required in production}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required in production}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY is required in production}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY is required in production}
+      # Public host clients reach the storage through (presigned URLs embed it).
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:?STORAGE_PUBLIC_URL is required in production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required in production}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required in production}
+      MAIL_HOST: ${MAIL_HOST:?MAIL_HOST (real SMTP) is required in production}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_FROM: ${MAIL_FROM:?MAIL_FROM is required in production}
+      APP_BASE_URL: ${APP_BASE_URL:?APP_BASE_URL is required in production}
+
+  worker:
+    restart: unless-stopped
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required in production}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required in production}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY is required in production}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY is required in production}
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:?STORAGE_PUBLIC_URL is required in production}
+
+  db:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required in production}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required in production}
+
+  minio:
+    restart: unless-stopped
+    # 9000 stays reachable (clients follow presigned URLs straight to the storage);
+    # the admin console (9001) is internal-only.
+    ports: !override ["9000:9000"]
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY is required in production}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY is required in production}
+    volumes:
+      - miniodata:/data
+
+  minio-init:
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${STORAGE_ACCESS_KEY} $${STORAGE_SECRET_KEY} &&
+      mc mb --ignore-existing local/streamtube-videos &&
+      echo 'Bucket ready.'
+      "
+    environment:
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:?STORAGE_ACCESS_KEY is required in production}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?STORAGE_SECRET_KEY is required in production}
+
+  # Dev-only mail catcher: the profile keeps it from starting in production.
+  mailpit:
+    profiles: ["dev-only"]
+
+volumes:
+  pgdata:
+  miniodata:

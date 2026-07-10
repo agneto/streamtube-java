@@ -159,6 +159,16 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 | GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
 | GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
+### Home e busca (Fase 07)
+
+| Método | Caminho | Autenticação | O que faz |
+|--------|---------|--------------|-----------|
+| GET | `/api/v1/videos?page&size&categoryId` | pública | Grid da home: publicados + PUBLIC, mais recentes primeiro; filtro opcional por categoria |
+| GET | `/api/v1/search?q=&page&size` | pública | Busca por título do vídeo ou nome do canal (contains, sem ranking; `q` mín. 2 chars) |
+
+Os dois devolvem o "card" da home: thumbnail, título, canal (id/name/nickname), views,
+`publishedAt` e categoria.
+
 ### Interações sociais (Fase 06)
 
 | Método | Caminho | Autenticação | O que faz |

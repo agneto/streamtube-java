@@ -54,6 +54,20 @@ public final class VideoDtos {
       UUID channelId,
       Instant createdAt) {}
 
+  /** Home-grid / search card: embeds the channel identity (unlike the channel-page summary). */
+  public record VideoCardResponse(
+      UUID id,
+      String slug,
+      String title,
+      String thumbnailUrl,
+      Double durationSeconds,
+      long views,
+      Instant publishedAt,
+      UUID categoryId,
+      ChannelRefResponse channel) {}
+
+  public record ChannelRefResponse(UUID id, String name, String nickname) {}
+
   /** Listing item for channel video pages (owner panel, public channel page) and suggestions. */
   public record VideoSummaryResponse(
       UUID id,

@@ -71,6 +71,28 @@ public class VideoRepositoryAdapter implements VideoRepository {
   }
 
   @Override
+  public PageResult<Video> findListedPage(UUID categoryId, int page, int size) {
+    PageRequest pageable = PageRequest.of(page, size);
+    return toPageResult(
+        categoryId == null
+            ? jpa.findByVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+                Visibility.PUBLIC, pageable)
+            : jpa.findByCategoryIdAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+                categoryId, Visibility.PUBLIC, pageable),
+        page,
+        size);
+  }
+
+  @Override
+  public PageResult<Video> searchListed(String query, int page, int size) {
+    // User input inside a LIKE pattern: escape the wildcards so "100%" matches literally.
+    String escaped = query.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    String pattern = "%" + escaped.toLowerCase() + "%";
+    return toPageResult(
+        jpa.searchListed(pattern, Visibility.PUBLIC, PageRequest.of(page, size)), page, size);
+  }
+
+  @Override
   public List<Video> findRelatedByCategory(UUID categoryId, UUID excludeId, int limit) {
     return jpa
         .findByCategoryIdAndIdNotAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(

@@ -232,9 +232,12 @@ erDiagram
     }
 ```
 
-Índices de listagem: `(channel_id, created_at DESC)` para o painel do dono e índice **parcial**
-`(channel_id, published_at DESC) WHERE visibility='PUBLIC' AND published_at IS NOT NULL` para a
-página pública do canal — o índice só contém exatamente as linhas que a query pública lê.
+Índices de listagem: `(channel_id, created_at DESC)` para o painel do dono e índices **parciais**
+sobre `WHERE visibility='PUBLIC' AND published_at IS NOT NULL` para as queries públicas —
+`(channel_id, published_at DESC)` (página do canal), `(category_id, published_at DESC)`
+(sugestões) e `(published_at DESC)` (grid da home). A busca (`ILIKE '%q%'` em título/nome do
+canal) usa índices GIN trigram (`pg_trgm`) em `videos.title` e `channels.name`, porque o wildcard
+à esquerda inutiliza btree.
 
 **Contadores desnormalizados (Fases 05–06):** as tabelas normalizadas (`video_reactions`,
 `comment_reactions`, `comments`, `subscriptions`) são a fonte da verdade — PK composta
@@ -252,9 +255,9 @@ mapeia essas tabelas.
 
 - **JWT stateless** (access curto + refresh com rotação e detecção de reuso por família).
 - Allowlist explícita: tudo exige auth por padrão; leituras públicas liberadas uma a uma
-  (`GET /videos/**`, `GET /categories`, `GET /comments/**`, `GET /channels/**` — com
-  `/channels/me/**` autenticado **antes** na cadeia). Escritas sociais (reações, comentários,
-  inscrições) caem no default autenticado.
+  (`GET /videos/**`, `GET /categories`, `GET /comments/**`, `GET /search`,
+  `GET /channels/**` — com `/channels/me/**` autenticado **antes** na cadeia). Escritas sociais
+  (reações, comentários, inscrições) caem no default autenticado.
 - **Rate limiting** por IP (token bucket, 10 req/min) nos endpoints de auth.
 - Autorização de escrita sempre no use case (dono do recurso), com corridas de unicidade
   (email, nickname) resolvidas por constraint do banco traduzida para 409.

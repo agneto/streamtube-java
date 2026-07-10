@@ -62,6 +62,8 @@ public class SecurityConfig {
                     // Replies listing is public; every write under /comments stays authenticated.
                     .requestMatchers(HttpMethod.GET, "/api/v1/comments/**")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/search")
+                    .permitAll()
                     // Order matters: /channels/me/** must stay authenticated, so it is matched
                     // before the public /channels/** channel pages.
                     .requestMatchers("/api/v1/channels/me/**")
