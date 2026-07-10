@@ -40,20 +40,25 @@ class FfmpegVideoAnalyzerTest {
   }
 
   @Test
-  void probeParsesDurationAndKeepsRawJson() {
-    String json = "{\"format\":{\"duration\":\"12.5\"},\"streams\":[]}";
+  void probeParsesDurationHeightAndKeepsRawJson() {
+    String json =
+        "{\"format\":{\"duration\":\"12.5\"},\"streams\":["
+            + "{\"codec_type\":\"audio\"},"
+            + "{\"codec_type\":\"video\",\"height\":720}]}";
 
     ProbeResult result = new FakeProcessAnalyzer(json).probe("http://input");
 
     assertThat(result.durationSeconds()).isEqualTo(12.5);
+    assertThat(result.height()).isEqualTo(720); // first VIDEO stream, audio skipped
     assertThat(result.rawJson()).isEqualTo(json);
   }
 
   @Test
-  void probeReturnsNullDurationWhenFfprobeOmitsIt() {
+  void probeReturnsNullDurationAndHeightWhenFfprobeOmitsThem() {
     ProbeResult result = new FakeProcessAnalyzer("{\"format\":{}}").probe("http://input");
 
     assertThat(result.durationSeconds()).isNull();
+    assertThat(result.height()).isNull();
   }
 
   @Test

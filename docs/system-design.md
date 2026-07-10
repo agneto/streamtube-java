@@ -276,15 +276,23 @@ mapeia essas tabelas.
 **Hoje:** API stateless (escala horizontal atrás de load balancer), workers concorrentes
 (a fila distribui; idempotência torna redelivery seguro), bytes 100% no storage.
 
-**Caminhos naturais, sem mudar a arquitetura:**
+**Já entregues como melhorias pós-1.0:**
 
-1. **Multipart upload** para arquivos grandes/retomada (§3.2).
-2. **Transcodificação multi-bitrate (HLS/DASH)** — o worker já é o lugar: gerar renditions +
-   playlist e servir via URL assinada; `status` ganharia granularidade ou uma tabela de renditions.
-3. **CDN** na frente do storage para leitura (o 302 passaria a apontar para a CDN).
+1. ~~**Multipart upload**~~ — **Fase 08** (§3.2): partes re-emissíveis + resume.
+2. ~~**Transcodificação multi-bitrate (HLS)**~~ — **Fase 09**: o worker gera a escada
+   (720p/480p/360p limitada pela altura do fonte, H.264+AAC, TS de 6s) no PROCESSING; as
+   **playlists** passam pela API (`/videos/{slug}/hls/...` — matriz de visibilidade + view na
+   master) e os **segmentos** vão direto do storage com URLs presignadas de TTL longo (6h).
+   Catálogo antigo (`hls_master_key` null) toca pelo `/stream` progressivo.
+
+**Caminhos naturais restantes, sem mudar a arquitetura:**
+
+3. **CDN** na frente do storage para leitura (segmentos HLS e o 302 passariam a apontar para a
+   CDN; o desenho de playlist já acomoda — troca-se o presigner por URLs assinadas da CDN).
 4. **Notificação de bucket** substituindo o `complete-upload` se o requisito de portabilidade
    mudar (§3.3).
-5. **Limpeza de órfãos** — job periódico para `PENDING_UPLOAD` antigos e objetos sem registro.
+5. **Limpeza de órfãos** — job periódico para `PENDING_UPLOAD` antigos e objetos sem registro
+   (sessões multipart abandonadas já são varridas por lifecycle do bucket, ver `deploy.md`).
 
 ## Referências
 

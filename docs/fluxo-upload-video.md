@@ -620,6 +620,12 @@ return storage.presignStream(video.storageKey());
 > (trade-off documentado). `GET /api/v1/videos/{slug}/related?limit=10` devolve as sugestões da
 > página de visualização: mesma categoria, publicadas + `PUBLIC`, excluindo o próprio vídeo.
 
+> **Fase 09 — HLS:** vídeos processados após a fase 09 também têm streaming adaptativo: o worker
+> gera a escada (até 720p/480p/360p, sem upscale) durante o PROCESSING e o `hlsUrl` do info
+> aponta para `GET /videos/{slug}/hls/master.m3u8`. As **playlists** passam pela API (matriz de
+> visibilidade + contagem de view na master); os **segmentos** vão direto do storage com URLs
+> presignadas de TTL longo (6h). `hlsUrl: null` = catálogo antigo, use o `/stream` progressivo.
+
 `GET /api/v1/videos/{slug}/download` é idêntico, mas assina com
 `response-content-disposition: attachment; filename="..."` para forçar download — e **não** conta
 view.

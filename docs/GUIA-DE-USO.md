@@ -159,6 +159,16 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 | GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
 | GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
+### Streaming adaptativo HLS (Fase 09)
+
+| Método | Caminho | Autenticação | O que faz |
+|--------|---------|--------------|-----------|
+| GET | `/api/v1/videos/{slug}/hls/master.m3u8` | pública | Playlist master (conta 1 view quando publicado); 404 se o vídeo não tem HLS |
+| GET | `/api/v1/videos/{slug}/hls/{rendition}/playlist.m3u8` | pública | Playlist da qualidade com segmentos presignados (TTL 6h) |
+
+O worker gera a escada (até 720p/480p/360p, sem upscale) no processamento. O `hlsUrl` no
+Get info indica se o vídeo tem HLS; `null` = use o `/stream` progressivo (catálogo antigo).
+
 ### Upload multipart (Fase 08 — arquivos grandes / conexão ruim)
 
 | Método | Caminho | Autenticação | O que faz |

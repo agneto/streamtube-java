@@ -113,6 +113,24 @@ public class S3StorageAdapter implements StoragePort {
   }
 
   @Override
+  public String presignStream(String key, long ttlSeconds) {
+    return publicPresigner
+        .presignGetObject(getRequest(key, null, Duration.ofSeconds(ttlSeconds)))
+        .url()
+        .toString();
+  }
+
+  @Override
+  public String getObjectText(String key) {
+    try (var stream =
+        internalClient.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())) {
+      return new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+    } catch (java.io.IOException e) {
+      throw new IllegalStateException("Failed to read object " + key, e);
+    }
+  }
+
+  @Override
   public String presignDownload(String key, String filename) {
     String disposition = "attachment; filename=\"" + filename + "\"";
     return publicPresigner

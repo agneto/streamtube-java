@@ -79,6 +79,11 @@ upload:
   part-size-bytes: ${UPLOAD_PART_SIZE_BYTES:8388608}
   part-url-ttl-seconds: ${UPLOAD_PART_URL_TTL_SECONDS:3600}
 
+hls:
+  # TTL of presigned SEGMENT URLs: a VOD player fetches the rendition playlist once and must be
+  # able to play to the end, so this is much longer than the 1h read TTL (default 6h).
+  segment-url-ttl-seconds: ${HLS_SEGMENT_URL_TTL_SECONDS:21600}
+
 management:
   endpoints:
     web:

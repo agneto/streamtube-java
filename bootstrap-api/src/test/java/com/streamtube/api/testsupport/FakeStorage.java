@@ -22,6 +22,9 @@ public class FakeStorage implements StoragePort {
   /** key -> size of completed multipart objects. */
   private final Map<String, Long> objects = new ConcurrentHashMap<>();
 
+  /** key -> content of small text objects (HLS playlists seeded by tests). */
+  private final Map<String, String> textObjects = new ConcurrentHashMap<>();
+
   @Override
   public String presignUpload(String key, long contentLength, String contentType) {
     return "http://localhost:9000/" + key + "?upload&sig=x";
@@ -30,6 +33,11 @@ public class FakeStorage implements StoragePort {
   @Override
   public String presignStream(String key) {
     return "http://localhost:9000/" + key + "?stream&sig=x";
+  }
+
+  @Override
+  public String presignStream(String key, long ttlSeconds) {
+    return "http://localhost:9000/" + key + "?stream&ttl=" + ttlSeconds + "&X-Amz-Signature=fake";
   }
 
   @Override
@@ -47,7 +55,23 @@ public class FakeStorage implements StoragePort {
 
   @Override
   public boolean objectExists(String key) {
-    return true;
+    // Historical behavior: uploaded objects "always exist". HLS keys are the exception — the
+    // rendition-not-in-ladder 404 path needs a real absence signal.
+    return !key.startsWith("hls/") || textObjects.containsKey(key);
+  }
+
+  @Override
+  public String getObjectText(String key) {
+    String text = textObjects.get(key);
+    if (text == null) {
+      throw new IllegalStateException("No text object seeded for " + key);
+    }
+    return text;
+  }
+
+  /** Test hook: seeds a playlist as if the worker had uploaded it. */
+  public void putTextObject(String key, String content) {
+    textObjects.put(key, content);
   }
 
   @Override
