@@ -48,7 +48,12 @@ class InitiateUploadUseCaseTest {
     slugGenerator = Mockito.mock(SlugGenerator.class);
     useCase =
         new InitiateUploadUseCase(
-            videos, channels, storage, slugGenerator, Clock.fixed(NOW, ZoneOffset.UTC), MAX_SIZE);
+            videos,
+            channels,
+            storage,
+            new UniqueSlugs(slugGenerator, videos),
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            MAX_SIZE);
 
     userId = UUID.randomUUID();
     channelId = UUID.randomUUID();

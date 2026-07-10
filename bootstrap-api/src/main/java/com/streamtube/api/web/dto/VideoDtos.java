@@ -2,10 +2,12 @@ package com.streamtube.api.web.dto;
 
 import com.streamtube.domain.video.Visibility;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /** Request/response payloads for the video endpoints. */
@@ -33,6 +35,21 @@ public final class VideoDtos {
   public record ThumbnailUploadResponse(String uploadUrl) {}
 
   public record InitiateUploadResponse(UUID id, String slug, String uploadUrl) {}
+
+  /** Multipart session opened: the client slices the file into {@code totalParts} parts. */
+  public record MultipartInitiateResponse(
+      UUID id, String slug, long partSizeBytes, int totalParts) {}
+
+  public record PartUrlsRequest(@NotEmpty List<Integer> partNumbers) {}
+
+  /** Presigned URL for one part; its exact {@code contentLengthBytes} is signed into it. */
+  public record PartUrlResponse(int partNumber, String url, long contentLengthBytes) {}
+
+  /** Resume status: which parts are already in storage. */
+  public record UploadedPartsResponse(
+      long partSizeBytes, int totalParts, List<UploadedPartItem> uploaded) {}
+
+  public record UploadedPartItem(int partNumber, long sizeBytes) {}
 
   /** {@code myReaction} is resolved only on the info read (null on write responses/anonymous). */
   public record VideoInfoResponse(

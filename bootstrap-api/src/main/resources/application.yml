@@ -73,6 +73,11 @@ upload:
   max-size-bytes: ${UPLOAD_MAX_SIZE_BYTES:2147483648}
   # Maximum declared custom-thumbnail size (default 5 MiB); also signed into the presigned URL.
   thumbnail-max-size-bytes: ${THUMB_MAX_SIZE_BYTES:5242880}
+  # Multipart uploads: part size (default 8 MiB; S3 minimum is 5 MiB for all but the last part)
+  # and the TTL of each part URL (longer than the single PUT — slow connections take long per
+  # part; expired URLs are simply re-requested).
+  part-size-bytes: ${UPLOAD_PART_SIZE_BYTES:8388608}
+  part-url-ttl-seconds: ${UPLOAD_PART_URL_TTL_SECONDS:3600}
 
 management:
   endpoints:

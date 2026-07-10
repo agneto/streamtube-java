@@ -1,8 +1,11 @@
 package com.streamtube.infrastructure.storage;
 
 import com.streamtube.application.port.out.StoragePort;
+import com.streamtube.application.port.out.UploadedPart;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -11,14 +14,24 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListPartsRequest;
+import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
 
 /**
  * S3/MinIO storage adapter. Uses two presigners because {@code host} is a SigV4-signed header:
@@ -35,14 +48,18 @@ public class S3StorageAdapter implements StoragePort {
   private final S3Presigner publicPresigner;
   private final S3Presigner internalPresigner;
   private final String bucket;
+  private final Duration partUrlTtl;
 
   public S3StorageAdapter(
       @Value("${storage.endpoint}") String endpoint,
       @Value("${storage.public-url}") String publicUrl,
       @Value("${storage.bucket}") String bucket,
       @Value("${storage.access-key}") String accessKey,
-      @Value("${storage.secret-key}") String secretKey) {
+      @Value("${storage.secret-key}") String secretKey,
+      @Value("${upload.part-url-ttl-seconds:3600}") long partUrlTtlSeconds) {
     this.bucket = bucket;
+    // Slow connections take long per part; expired part URLs are simply re-requested.
+    this.partUrlTtl = Duration.ofSeconds(partUrlTtlSeconds);
     StaticCredentialsProvider creds =
         StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
     S3Configuration pathStyle = S3Configuration.builder().pathStyleAccessEnabled(true).build();
@@ -132,6 +149,100 @@ public class S3StorageAdapter implements StoragePort {
       }
       throw e;
     }
+  }
+
+  @Override
+  public String createMultipartUpload(String key, String contentType) {
+    return internalClient
+        .createMultipartUpload(
+            CreateMultipartUploadRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType(contentType)
+                .build())
+        .uploadId();
+  }
+
+  @Override
+  public String presignUploadPart(String key, String uploadId, int partNumber, long contentLength) {
+    UploadPartRequest part =
+        UploadPartRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .uploadId(uploadId)
+            .partNumber(partNumber)
+            .contentLength(contentLength)
+            .build();
+    return publicPresigner
+        .presignUploadPart(
+            UploadPartPresignRequest.builder()
+                .signatureDuration(partUrlTtl)
+                .uploadPartRequest(part)
+                .build())
+        .url()
+        .toString();
+  }
+
+  @Override
+  public List<UploadedPart> listUploadedParts(String key, String uploadId) {
+    // ListParts pages at 1000 — iterate to exhaustion or big uploads complete with parts missing.
+    List<UploadedPart> parts = new ArrayList<>();
+    Integer marker = null;
+    ListPartsResponse page;
+    do {
+      ListPartsRequest.Builder request =
+          ListPartsRequest.builder().bucket(bucket).key(key).uploadId(uploadId);
+      if (marker != null) {
+        request.partNumberMarker(marker);
+      }
+      page = internalClient.listParts(request.build());
+      page.parts()
+          .forEach(p -> parts.add(new UploadedPart(p.partNumber(), p.size(), p.eTag())));
+      marker = page.nextPartNumberMarker();
+    } while (Boolean.TRUE.equals(page.isTruncated()));
+    return parts;
+  }
+
+  @Override
+  public void completeMultipartUpload(String key, String uploadId, List<UploadedPart> parts) {
+    List<CompletedPart> completed =
+        parts.stream()
+            .sorted(java.util.Comparator.comparingInt(UploadedPart::partNumber))
+            .map(p -> CompletedPart.builder().partNumber(p.partNumber()).eTag(p.etag()).build())
+            .toList();
+    internalClient.completeMultipartUpload(
+        CompleteMultipartUploadRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .uploadId(uploadId)
+            .multipartUpload(CompletedMultipartUpload.builder().parts(completed).build())
+            .build());
+  }
+
+  @Override
+  public void abortMultipartUpload(String key, String uploadId) {
+    try {
+      internalClient.abortMultipartUpload(
+          AbortMultipartUploadRequest.builder().bucket(bucket).key(key).uploadId(uploadId).build());
+    } catch (S3Exception e) {
+      // Session already gone (e.g. consumed by a complete whose size check then failed): the
+      // outcome the caller wants — no parts left — is already true.
+      if (e.statusCode() != 404) {
+        throw e;
+      }
+    }
+  }
+
+  @Override
+  public long objectSizeBytes(String key) {
+    return internalClient
+        .headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build())
+        .contentLength();
+  }
+
+  @Override
+  public void deleteObject(String key) {
+    internalClient.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
   }
 
   private GetObjectPresignRequest getRequest(String key, String disposition, Duration ttl) {
