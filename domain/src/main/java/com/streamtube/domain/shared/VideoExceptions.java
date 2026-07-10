@@ -83,6 +83,15 @@ public final class VideoExceptions {
     }
   }
 
+  public static final class InvalidSearchQueryException extends DomainException {
+    public InvalidSearchQueryException() {
+      super(
+          "INVALID_SEARCH_QUERY",
+          "Search query must have at least 2 characters",
+          DomainErrorType.VALIDATION);
+    }
+  }
+
   public static final class VideoNotPublishedException extends DomainException {
     public VideoNotPublishedException() {
       super(

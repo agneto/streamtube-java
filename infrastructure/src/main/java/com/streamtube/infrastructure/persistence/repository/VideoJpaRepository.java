@@ -23,6 +23,25 @@ public interface VideoJpaRepository extends JpaRepository<VideoEntity, UUID> {
   Page<VideoEntity> findByChannelIdAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
       UUID channelId, Visibility visibility, Pageable pageable);
 
+  Page<VideoEntity> findByVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+      Visibility visibility, Pageable pageable);
+
+  Page<VideoEntity> findByCategoryIdAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
+      UUID categoryId, Visibility visibility, Pageable pageable);
+
+  // Search re-applies the listing rule inside the query: a draft's title can never match through
+  // the join. The pattern arrives lowercased and '!'-escaped from the adapter.
+  @Query(
+      "select v from VideoEntity v, ChannelEntity c where c.id = v.channelId"
+          + " and v.visibility = :visibility and v.publishedAt is not null"
+          + " and (lower(v.title) like :pattern escape '!'"
+          + " or lower(c.name) like :pattern escape '!')"
+          + " order by v.publishedAt desc")
+  Page<VideoEntity> searchListed(
+      @Param("pattern") String pattern,
+      @Param("visibility") Visibility visibility,
+      Pageable pageable);
+
   // Native so the increment stays a single atomic statement and bypasses the entity mapping
   // (views_count is updatable = false there on purpose).
   @Modifying

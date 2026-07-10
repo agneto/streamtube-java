@@ -477,6 +477,101 @@ class VideosE2ETest {
         .andExpect(status().isOk());
   }
 
+  @Test
+  void homeGridListsOnlyPublishedPublicNewestFirst() throws Exception {
+    String token = registerConfirmLogin("home-grid@test.com");
+    JsonNode categories =
+        readJson(mockMvc.perform(get("/api/v1/categories")).andExpect(status().isOk()));
+    String categoryA = categories.get(2).get("id").asText();
+    String categoryB = categories.get(3).get("id").asText();
+
+    String publicA = createCategorizedVideo(token, "Home A", categoryA, null, true);
+    String publicB = createCategorizedVideo(token, "Home B", categoryB, null, true);
+    String unlisted = createCategorizedVideo(token, "Home unlisted", categoryA, "UNLISTED", true);
+    String draft = createCategorizedVideo(token, "Home draft", categoryA, null, false);
+
+    // global grid: published PUBLIC in, UNLISTED/draft out; cards carry the channel identity
+    JsonNode home =
+        readJson(mockMvc.perform(get("/api/v1/videos?size=100")).andExpect(status().isOk()));
+    java.util.List<String> slugs = home.findValuesAsText("slug");
+    assertThat(slugs).contains(publicA, publicB).doesNotContain(unlisted, draft);
+    JsonNode first = home.get("items").get(0);
+    assertThat(first.get("channel").get("nickname").asText()).isNotBlank();
+    assertThat(first.get("publishedAt").asText()).isNotBlank();
+    assertThat(first.get("views").asLong()).isGreaterThanOrEqualTo(0);
+
+    // newest publication first (parse: ISO strings with varying fraction lengths don't sort)
+    java.util.List<java.time.Instant> publishedAts =
+        home.findValuesAsText("publishedAt").stream().map(java.time.Instant::parse).toList();
+    assertThat(publishedAts).isSortedAccordingTo(java.util.Comparator.reverseOrder());
+
+    // category filter: only category A's public video (of ours)
+    JsonNode filtered =
+        readJson(
+            mockMvc
+                .perform(get("/api/v1/videos?size=100&categoryId=" + categoryA))
+                .andExpect(status().isOk()));
+    assertThat(filtered.findValuesAsText("slug"))
+        .contains(publicA)
+        .doesNotContain(publicB, unlisted, draft);
+
+    // unknown category: empty page, not an error
+    mockMvc
+        .perform(get("/api/v1/videos?categoryId=" + UUID.randomUUID()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalItems").value(0));
+  }
+
+  @Test
+  void searchMatchesTitleOrChannelNameOfListedVideosOnly() throws Exception {
+    String token = registerConfirmLogin("search-owner@test.com");
+    mockMvc
+        .perform(
+            patch("/api/v1/channels/me")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("name", "Estúdio Quux"))))
+        .andExpect(status().isOk());
+
+    String byTitle = createCategorizedVideo(token, "Xyzzy Plugh Tutorial", null, null, true);
+    String hiddenDraft = createCategorizedVideo(token, "Xyzzy Plugh secreto", null, null, false);
+    String unlisted =
+        createCategorizedVideo(token, "Xyzzy Plugh unlisted", null, "UNLISTED", true);
+    String withPercent = createCategorizedVideo(token, "Aula 100% completa", null, null, true);
+
+    // by title, case-insensitive contains — drafts and UNLISTED never match
+    JsonNode byTitleResult =
+        readJson(
+            mockMvc
+                .perform(get("/api/v1/search").param("q", "xyzzy plugh"))
+                .andExpect(status().isOk()));
+    assertThat(byTitleResult.findValuesAsText("slug"))
+        .contains(byTitle)
+        .doesNotContain(hiddenDraft, unlisted);
+
+    // by channel name: every listed video of the matching channel
+    JsonNode byChannel =
+        readJson(
+            mockMvc.perform(get("/api/v1/search").param("q", "quux")).andExpect(status().isOk()));
+    assertThat(byChannel.findValuesAsText("slug")).contains(byTitle, withPercent);
+
+    // % in the query is literal text, not a wildcard
+    JsonNode literal =
+        readJson(
+            mockMvc.perform(get("/api/v1/search").param("q", "100%")).andExpect(status().isOk()));
+    assertThat(literal.findValuesAsText("slug")).contains(withPercent).doesNotContain(byTitle);
+    mockMvc
+        .perform(get("/api/v1/search").param("q", "00%x"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalItems").value(0));
+
+    // short query -> 400
+    mockMvc
+        .perform(get("/api/v1/search").param("q", "a"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_SEARCH_QUERY"));
+  }
+
   /** Initiates a video, assigns a category (and visibility), marks READY and optionally publishes. */
   private String createCategorizedVideo(
       String token, String title, String categoryId, String visibility, boolean publish)
