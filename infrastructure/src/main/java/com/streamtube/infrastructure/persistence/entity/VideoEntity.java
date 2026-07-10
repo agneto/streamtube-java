@@ -81,6 +81,15 @@ public class VideoEntity {
   @Column(name = "comments_count", nullable = false, updatable = false)
   private long commentsCount;
 
+  @Column(name = "upload_id", length = 200)
+  private String uploadId;
+
+  @Column(name = "upload_size_bytes")
+  private Long uploadSizeBytes;
+
+  @Column(name = "upload_part_size")
+  private Long uploadPartSize;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -108,6 +117,9 @@ public class VideoEntity {
       long likesCount,
       long dislikesCount,
       long commentsCount,
+      String uploadId,
+      Long uploadSizeBytes,
+      Long uploadPartSize,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -128,6 +140,9 @@ public class VideoEntity {
     this.likesCount = likesCount;
     this.dislikesCount = dislikesCount;
     this.commentsCount = commentsCount;
+    this.uploadId = uploadId;
+    this.uploadSizeBytes = uploadSizeBytes;
+    this.uploadPartSize = uploadPartSize;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -202,6 +217,18 @@ public class VideoEntity {
 
   public long getCommentsCount() {
     return commentsCount;
+  }
+
+  public String getUploadId() {
+    return uploadId;
+  }
+
+  public Long getUploadSizeBytes() {
+    return uploadSizeBytes;
+  }
+
+  public Long getUploadPartSize() {
+    return uploadPartSize;
   }
 
   public Instant getCreatedAt() {

@@ -159,6 +159,16 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 | GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
 | GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
+### Upload multipart (Fase 08 — arquivos grandes / conexão ruim)
+
+| Método | Caminho | Autenticação | O que faz |
+|--------|---------|--------------|-----------|
+| POST | `/api/v1/videos/multipart` | autenticada | Cria o vídeo e abre a sessão; devolve `partSizeBytes` (8 MiB) e `totalParts` |
+| POST | `/api/v1/videos/{id}/parts` | autenticada (dono) | URLs presignadas das partes pedidas — re-emissíveis (retry) |
+| GET | `/api/v1/videos/{id}/parts` | autenticada (dono) | Partes que já chegaram (resume após queda) |
+| POST | `/api/v1/videos/{id}/complete-multipart` | autenticada (dono) | Servidor monta o objeto (você nunca lida com ETags), confere o tamanho e enfileira |
+| DELETE | `/api/v1/videos/{id}/multipart` | autenticada (dono) | Aborta a sessão e descarta as partes |
+
 ### Home e busca (Fase 07)
 
 | Método | Caminho | Autenticação | O que faz |

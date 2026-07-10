@@ -2,6 +2,7 @@ package com.streamtube.domain.video;
 
 import com.streamtube.domain.shared.VideoExceptions.InvalidVideoDescriptionException;
 import com.streamtube.domain.shared.VideoExceptions.InvalidVideoTitleException;
+import com.streamtube.domain.shared.VideoExceptions.UploadSessionConflictException;
 import com.streamtube.domain.shared.VideoExceptions.VideoStatusConflictException;
 import java.time.Instant;
 import java.util.UUID;
@@ -35,6 +36,9 @@ public class Video {
   private final long likesCount;
   private final long dislikesCount;
   private final long commentsCount;
+  private String uploadId;
+  private Long uploadSizeBytes;
+  private Long uploadPartSize;
   private final Instant createdAt;
   private Instant updatedAt;
 
@@ -57,6 +61,9 @@ public class Video {
       long likesCount,
       long dislikesCount,
       long commentsCount,
+      String uploadId,
+      Long uploadSizeBytes,
+      Long uploadPartSize,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -77,6 +84,9 @@ public class Video {
     this.likesCount = likesCount;
     this.dislikesCount = dislikesCount;
     this.commentsCount = commentsCount;
+    this.uploadId = uploadId;
+    this.uploadSizeBytes = uploadSizeBytes;
+    this.uploadPartSize = uploadPartSize;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -86,7 +96,7 @@ public class Video {
       UUID id, UUID channelId, String title, String slug, String storageKey, Instant now) {
     return new Video(
         id, channelId, title, slug, VideoStatus.PENDING_UPLOAD, storageKey, null, null, null, null,
-        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, now, now);
+        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, null, null, null, now, now);
   }
 
   /**
@@ -140,6 +150,37 @@ public class Video {
     }
     this.thumbnailKey = newThumbnailKey;
     this.updatedAt = now;
+  }
+
+  /**
+   * Opens a multipart upload session. One session per video, and only while the upload is still
+   * pending — anything else is a conflict.
+   */
+  public void beginMultipartUpload(String uploadId, long sizeBytes, long partSize, Instant now) {
+    if (status != VideoStatus.PENDING_UPLOAD || this.uploadId != null) {
+      throw new UploadSessionConflictException();
+    }
+    this.uploadId = uploadId;
+    this.uploadSizeBytes = sizeBytes;
+    this.uploadPartSize = partSize;
+    this.updatedAt = now;
+  }
+
+  /** Closes the multipart session (after complete or abort). */
+  public void clearUploadSession(Instant now) {
+    this.uploadId = null;
+    this.uploadSizeBytes = null;
+    this.uploadPartSize = null;
+    this.updatedAt = now;
+  }
+
+  public boolean hasActiveUpload() {
+    return uploadId != null;
+  }
+
+  /** Number of parts of the active session (last part is the remainder). */
+  public int totalParts() {
+    return (int) ((uploadSizeBytes + uploadPartSize - 1) / uploadPartSize);
   }
 
   public void markQueued(Instant now) {
@@ -260,6 +301,18 @@ public class Video {
 
   public long commentsCount() {
     return commentsCount;
+  }
+
+  public String uploadId() {
+    return uploadId;
+  }
+
+  public Long uploadSizeBytes() {
+    return uploadSizeBytes;
+  }
+
+  public Long uploadPartSize() {
+    return uploadPartSize;
   }
 
   public Instant createdAt() {

@@ -1,6 +1,7 @@
 package com.streamtube.api.video;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.streamtube.application.port.out.MailSender;
-import com.streamtube.application.port.out.StoragePort;
+import com.streamtube.api.testsupport.FakeStorage;
 import com.streamtube.application.port.out.VideoProcessingPublisher;
 import java.sql.Connection;
 import java.util.Map;
@@ -49,6 +50,7 @@ class VideosE2ETest {
   @Autowired private DataSource dataSource;
   @Autowired private CapturingMailSender mail;
   @Autowired private FakePublisher publisher;
+  @Autowired private FakeStorage fakeStorage;
 
   @Test
   void initiateCompleteAndStreamFlow() throws Exception {
@@ -478,6 +480,129 @@ class VideosE2ETest {
   }
 
   @Test
+  void multipartUploadWithRetryAndResume() throws Exception {
+    String token = registerConfirmLogin("multipart@test.com");
+    long size = 20_000_000L; // 3 parts at the default 8 MiB
+    long partSize = 8L * 1024 * 1024;
+    long lastPart = size - 2 * partSize;
+
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos/multipart")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            objectMapper.writeValueAsString(
+                                Map.of(
+                                    "title", "Grande",
+                                    "sizeBytes", size,
+                                    "contentType", "video/mp4"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    assertThat(init.get("partSizeBytes").asLong()).isEqualTo(partSize);
+    assertThat(init.get("totalParts").asInt()).isEqualTo(3);
+    String uploadId = fakeStorage.onlyOpenUploadId();
+
+    // part URLs sign the exact length of each part (last = remainder), re-issuable at will
+    JsonNode urls =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos/" + id + "/parts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"partNumbers\":[1,2,3]}"))
+                .andExpect(status().isOk()));
+    assertThat(urls.get(0).get("contentLengthBytes").asLong()).isEqualTo(partSize);
+    assertThat(urls.get(2).get("contentLengthBytes").asLong()).isEqualTo(lastPart);
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/parts")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"partNumbers\":[4]}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_PART_NUMBERS"));
+
+    // "bad connection": parts 1 and 3 make it, part 2 is lost — resume shows exactly that
+    fakeStorage.receivePart(uploadId, 1, partSize);
+    fakeStorage.receivePart(uploadId, 3, lastPart);
+    mockMvc
+        .perform(get("/api/v1/videos/" + id + "/parts").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalParts").value(3))
+        .andExpect(jsonPath("$.uploaded.length()").value(2));
+
+    // completing with a missing part is refused
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/complete-multipart")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("UPLOAD_NOT_COMPLETED"));
+
+    // client re-requests part 2's URL and finishes
+    fakeStorage.receivePart(uploadId, 2, partSize);
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/complete-multipart")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isNoContent());
+    assertThat(publisher.lastVideoId).isEqualTo(UUID.fromString(id));
+
+    // session consumed: the resume endpoint now reports no active upload
+    mockMvc
+        .perform(get("/api/v1/videos/" + id + "/parts").header("Authorization", "Bearer " + token))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("NO_ACTIVE_UPLOAD"));
+  }
+
+  @Test
+  void multipartCompleteRejectsSizeMismatchAndAbortDiscards() throws Exception {
+    String token = registerConfirmLogin("multipart2@test.com");
+    long size = 10_000_000L; // 2 parts
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos/multipart")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            objectMapper.writeValueAsString(
+                                Map.of(
+                                    "title", "Errado",
+                                    "sizeBytes", size,
+                                    "contentType", "video/mp4"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String uploadId = fakeStorage.onlyOpenUploadId();
+
+    // both parts present but short: assembled size != declared -> refused, object discarded
+    fakeStorage.receivePart(uploadId, 1, 1_000L);
+    fakeStorage.receivePart(uploadId, 2, 1_000L);
+    mockMvc
+        .perform(
+            post("/api/v1/videos/" + id + "/complete-multipart")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("UPLOAD_NOT_COMPLETED"));
+
+    // abort clears the session (idempotence is not promised: second call is a 409)
+    mockMvc
+        .perform(
+            delete("/api/v1/videos/" + id + "/multipart").header("Authorization", "Bearer " + token))
+        .andExpect(status().isNoContent());
+    mockMvc
+        .perform(
+            delete("/api/v1/videos/" + id + "/multipart").header("Authorization", "Bearer " + token))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("NO_ACTIVE_UPLOAD"));
+  }
+
+  @Test
   void homeGridListsOnlyPublishedPublicNewestFirst() throws Exception {
     String token = registerConfirmLogin("home-grid@test.com");
     JsonNode categories =
@@ -685,36 +810,6 @@ class VideosE2ETest {
 
     @Override
     public void sendPasswordResetEmail(String to, String rawToken) {}
-  }
-
-  static class FakeStorage implements StoragePort {
-    @Override
-    public String presignUpload(String key, long contentLength, String contentType) {
-      return "http://localhost:9000/" + key + "?upload&sig=x";
-    }
-
-    @Override
-    public String presignStream(String key) {
-      return "http://localhost:9000/" + key + "?stream&sig=x";
-    }
-
-    @Override
-    public String presignDownload(String key, String filename) {
-      return "http://localhost:9000/" + key + "?download&response-content-disposition=attachment";
-    }
-
-    @Override
-    public String presignInternal(String key) {
-      return "http://minio:9000/" + key + "?internal&sig=x";
-    }
-
-    @Override
-    public void putObject(String key, byte[] body, String contentType) {}
-
-    @Override
-    public boolean objectExists(String key) {
-      return true;
-    }
   }
 
   static class FakePublisher implements VideoProcessingPublisher {

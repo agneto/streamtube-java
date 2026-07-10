@@ -125,22 +125,28 @@ assinadas de curta duração (PUT: 15 min; GET: 1h). Consequências:
 - O controle de acesso vira controle de **emissão de URL** (quem pode pedir a URL), não de fluxo
   de dados.
 
-### 3.2 PUT único, não multipart ("chunks de 5 MB")
+### 3.2 PUT único **e** multipart (Fase 08)
 
-O upload é **um PUT só**, com `Content-Length` e `Content-Type` assinados na URL. O clássico
-"upload em partes de 5 MB" é o **S3 Multipart Upload** (initiate → N PUTs de parte → complete), e
-**não está implementado** aqui. Trade-off assumido:
+Para arquivos pequenos o upload continua **um PUT só**, com `Content-Length` e `Content-Type`
+assinados na URL. Para arquivos grandes (ou redes instáveis) existe o segundo caminho, o **S3
+Multipart Upload** — o cliente escolhe na iniciação. O racional da comparação continua valendo:
 
-| | PUT único (atual) | Multipart (evolução) |
+| | PUT único | Multipart |
 |---|---|---|
-| Complexidade | uma URL, um request | orquestrar part numbers, ETags, complete/abort |
-| Falha no meio | recomeça do zero | retoma da última parte |
+| Complexidade | uma URL, um request | partes de 8 MiB, cada uma com sua URL |
+| Falha no meio | recomeça do zero | reenvia só a parte perdida (**resume**) |
 | Paralelismo | não | partes em paralelo (mais banda) |
-| Limite prático | ok até poucos GB (limite atual: 2 GiB) | necessário acima de 5 GB (limite de PUT do S3) |
+| Quando usar | até poucas centenas de MB | arquivos grandes / conexão ruim (obrigatório > 5 GB, limite de PUT do S3) |
 
-Quando fizer sentido (arquivos maiores, redes instáveis), a evolução é a API emitir URLs
-pré-assinadas **por parte** (`UploadPartRequest`) e um endpoint de `complete` que fecha o
-multipart — o resto do pipeline não muda.
+Fluxo multipart: `POST /videos/multipart` (cria o vídeo e a sessão; o servidor dita o tamanho da
+parte) → `POST /videos/{id}/parts` devolve URLs **por parte, re-emissíveis** (TTL 1 h; expirou ou
+falhou, pede de novo só aquela) → `GET /videos/{id}/parts` mostra o que já chegou (retomada após
+queda/reboot) → `POST /videos/{id}/complete-multipart`. Duas decisões importantes: **o cliente
+nunca vê ETags** — o servidor monta o objeto lendo as partes do próprio storage (`ListParts`), o
+que é também o que torna o resume gratuito; e cada URL de parte assina o tamanho exato daquela
+parte, com um HEAD final conferindo o total contra o declarado (divergiu: objeto descartado).
+Depois do complete, o pipeline (QUEUED → worker → READY) nem sabe como os bytes chegaram.
+Sessões abandonadas são varridas por regra de lifecycle do bucket (ver `deploy.md`).
 
 ### 3.3 Confirmação pelo cliente, não por evento do storage
 
