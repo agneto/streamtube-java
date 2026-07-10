@@ -49,7 +49,10 @@ class CompleteUploadUseCaseTest {
     publisher = Mockito.mock(VideoProcessingPublisher.class);
     useCase =
         new CompleteUploadUseCase(
-            videos, channels, storage, publisher, Clock.fixed(NOW, ZoneOffset.UTC));
+            new VideoOwnership(videos, channels),
+            storage,
+            new QueueForProcessing(videos, publisher),
+            Clock.fixed(NOW, ZoneOffset.UTC));
 
     videoId = UUID.randomUUID();
     userId = UUID.randomUUID();
@@ -62,7 +65,7 @@ class CompleteUploadUseCaseTest {
   private Video video(UUID owningChannel, VideoStatus status) {
     return new Video(
         videoId, owningChannel, "T", "slug123", status, "videos/slug123", null, null, null, null,
-        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, NOW, NOW);
+        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, null, null, null, NOW, NOW);
   }
 
   @Test

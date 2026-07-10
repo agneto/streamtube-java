@@ -83,6 +83,33 @@ public final class VideoExceptions {
     }
   }
 
+  public static final class NoActiveUploadException extends DomainException {
+    public NoActiveUploadException() {
+      super(
+          "NO_ACTIVE_UPLOAD",
+          "This video has no active multipart upload session",
+          DomainErrorType.CONFLICT);
+    }
+  }
+
+  public static final class UploadSessionConflictException extends DomainException {
+    public UploadSessionConflictException() {
+      super(
+          "UPLOAD_SESSION_CONFLICT",
+          "An upload session is already open or the video is past the upload stage",
+          DomainErrorType.CONFLICT);
+    }
+  }
+
+  public static final class InvalidPartNumbersException extends DomainException {
+    public InvalidPartNumbersException() {
+      super(
+          "INVALID_PART_NUMBERS",
+          "Part numbers must be within the session's range (max 100 per request)",
+          DomainErrorType.VALIDATION);
+    }
+  }
+
   public static final class InvalidSearchQueryException extends DomainException {
     public InvalidSearchQueryException() {
       super(

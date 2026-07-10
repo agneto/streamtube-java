@@ -58,7 +58,21 @@ antes. Em upgrades: `git pull && docker compose -f compose.yaml -f compose.prod.
 - Os bytes de vídeo **nunca passam pela API** (upload e playback vão direto ao storage), então o
   dimensionamento da API é por JSON/Postgres, não por tráfego de vídeo.
 
-## 5. Checklist antes do primeiro deploy
+## 5. Uploads multipart abandonados (lifecycle do bucket)
+
+Uma sessão multipart iniciada e abandonada segura bytes **invisíveis** no bucket (as partes não
+aparecem como objetos). Configure a regra de lifecycle que aborta uploads incompletos:
+
+```bash
+# MinIO
+mc ilm rule add local/streamtube-videos --expire-abort-incomplete-multipart-days 7
+# AWS S3: regra de lifecycle "AbortIncompleteMultipartUpload" com DaysAfterInitiation = 7
+```
+
+Mesma filosofia dos rascunhos `PENDING_UPLOAD` órfãos (system-design §3.3): limpeza é tarefa de
+infraestrutura, não um cron dentro da aplicação.
+
+## 6. Checklist antes do primeiro deploy
 
 - [ ] `.env` com todos os segredos (tabela acima) — `docker compose ... config` valida sem subir
 - [ ] TLS na frente de 8080 e 9000; `STORAGE_PUBLIC_URL`/`APP_BASE_URL` com os hosts públicos

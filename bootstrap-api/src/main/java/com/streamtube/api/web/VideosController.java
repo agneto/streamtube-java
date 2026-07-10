@@ -2,8 +2,13 @@ package com.streamtube.api.web;
 
 import com.streamtube.api.web.dto.VideoDtos.CreateVideoRequest;
 import com.streamtube.api.web.dto.VideoDtos.InitiateUploadResponse;
+import com.streamtube.api.web.dto.VideoDtos.MultipartInitiateResponse;
+import com.streamtube.api.web.dto.VideoDtos.PartUrlResponse;
+import com.streamtube.api.web.dto.VideoDtos.PartUrlsRequest;
 import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadRequest;
 import com.streamtube.api.web.dto.VideoDtos.ThumbnailUploadResponse;
+import com.streamtube.api.web.dto.VideoDtos.UploadedPartItem;
+import com.streamtube.api.web.dto.VideoDtos.UploadedPartsResponse;
 import com.streamtube.api.web.dto.PageResponse;
 import com.streamtube.api.web.dto.SocialDtos.CommentResponse;
 import com.streamtube.api.web.dto.SocialDtos.CreateCommentRequest;
@@ -16,8 +21,13 @@ import com.streamtube.application.social.CreateCommentUseCase;
 import com.streamtube.application.social.ListCommentsUseCase;
 import com.streamtube.application.social.RemoveVideoReactionUseCase;
 import com.streamtube.application.social.SetVideoReactionUseCase;
+import com.streamtube.application.video.AbortMultipartUploadUseCase;
+import com.streamtube.application.video.CompleteMultipartUploadUseCase;
 import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
+import com.streamtube.application.video.InitiateMultipartUploadUseCase;
+import com.streamtube.application.video.IssuePartUrlsUseCase;
 import com.streamtube.application.video.ListHomeVideosUseCase;
+import com.streamtube.application.video.ListUploadedPartsUseCase;
 import com.streamtube.application.video.CompleteUploadUseCase;
 import com.streamtube.application.video.GetDownloadUrlUseCase;
 import com.streamtube.application.video.GetRelatedVideosUseCase;
@@ -27,7 +37,9 @@ import com.streamtube.application.video.InitiateThumbnailUploadUseCase;
 import com.streamtube.application.video.InitiateUploadUseCase;
 import com.streamtube.application.video.PublishVideoUseCase;
 import com.streamtube.application.video.UpdateVideoDetailsUseCase;
+import com.streamtube.application.video.result.InitiateMultipartResult;
 import com.streamtube.application.video.result.InitiateUploadResult;
+import com.streamtube.application.video.result.UploadedPartsView;
 import com.streamtube.application.video.result.VideoInfoView;
 import com.streamtube.application.video.result.VideoSummaryView;
 import com.streamtube.infrastructure.security.AuthenticatedUser;
@@ -72,6 +84,11 @@ public class VideosController {
   private final CreateCommentUseCase createComment;
   private final ListCommentsUseCase listComments;
   private final ListHomeVideosUseCase listHomeVideos;
+  private final InitiateMultipartUploadUseCase initiateMultipart;
+  private final IssuePartUrlsUseCase issuePartUrls;
+  private final ListUploadedPartsUseCase listUploadedParts;
+  private final CompleteMultipartUploadUseCase completeMultipart;
+  private final AbortMultipartUploadUseCase abortMultipart;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -88,7 +105,12 @@ public class VideosController {
       RemoveVideoReactionUseCase removeVideoReaction,
       CreateCommentUseCase createComment,
       ListCommentsUseCase listComments,
-      ListHomeVideosUseCase listHomeVideos) {
+      ListHomeVideosUseCase listHomeVideos,
+      InitiateMultipartUploadUseCase initiateMultipart,
+      IssuePartUrlsUseCase issuePartUrls,
+      ListUploadedPartsUseCase listUploadedParts,
+      CompleteMultipartUploadUseCase completeMultipart,
+      AbortMultipartUploadUseCase abortMultipart) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
@@ -104,6 +126,11 @@ public class VideosController {
     this.createComment = createComment;
     this.listComments = listComments;
     this.listHomeVideos = listHomeVideos;
+    this.initiateMultipart = initiateMultipart;
+    this.issuePartUrls = issuePartUrls;
+    this.listUploadedParts = listUploadedParts;
+    this.completeMultipart = completeMultipart;
+    this.abortMultipart = abortMultipart;
   }
 
   @GetMapping
@@ -134,6 +161,59 @@ public class VideosController {
   public void complete(
       @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
     completeUpload.execute(id, principal.id());
+  }
+
+  @PostMapping("/multipart")
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Initiate a resumable multipart upload for a large video")
+  public MultipartInitiateResponse initiateMultipart(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @Valid @RequestBody CreateVideoRequest request) {
+    InitiateMultipartResult result =
+        initiateMultipart.execute(
+            principal.id(), request.title(), request.sizeBytes(), request.contentType());
+    return new MultipartInitiateResponse(
+        result.id(), result.slug(), result.partSizeBytes(), result.totalParts());
+  }
+
+  @PostMapping("/{id}/parts")
+  @Operation(summary = "Presigned URLs for the requested parts (re-issuable anytime)")
+  public List<PartUrlResponse> partUrls(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody PartUrlsRequest request) {
+    return issuePartUrls.execute(id, principal.id(), request.partNumbers()).stream()
+        .map(p -> new PartUrlResponse(p.partNumber(), p.url(), p.contentLengthBytes()))
+        .toList();
+  }
+
+  @GetMapping("/{id}/parts")
+  @Operation(summary = "Resume status: parts already in storage for the open session")
+  public UploadedPartsResponse uploadedParts(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    UploadedPartsView view = listUploadedParts.execute(id, principal.id());
+    return new UploadedPartsResponse(
+        view.partSizeBytes(),
+        view.totalParts(),
+        view.uploaded().stream()
+            .map(p -> new UploadedPartItem(p.partNumber(), p.sizeBytes()))
+            .toList());
+  }
+
+  @PostMapping("/{id}/complete-multipart")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Assemble the multipart object (server-side ETags) and enqueue processing")
+  public void completeMultipart(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    completeMultipart.execute(id, principal.id());
+  }
+
+  @DeleteMapping("/{id}/multipart")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Abort the multipart session, discarding every uploaded part")
+  public void abortMultipart(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    abortMultipart.execute(id, principal.id());
   }
 
   @PatchMapping("/{id}")

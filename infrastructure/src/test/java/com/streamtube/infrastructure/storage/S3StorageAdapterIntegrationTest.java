@@ -51,7 +51,7 @@ class S3StorageAdapterIntegrationTest {
     }
 
     // Same endpoint for public/internal in the test (no Docker network split here).
-    adapter = new S3StorageAdapter(url, url, BUCKET, user, pass);
+    adapter = new S3StorageAdapter(url, url, BUCKET, user, pass, 3600);
   }
 
   @Test

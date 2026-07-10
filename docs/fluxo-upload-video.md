@@ -390,6 +390,14 @@ Regras impostas pela assinatura (sem nenhum código nosso executando):
 
 ---
 
+> **Fase 08 — arquivos grandes:** existe um segundo caminho, o **upload multipart**:
+> `POST /api/v1/videos/multipart` abre a sessão (partes de 8 MiB), `POST /videos/{id}/parts`
+> devolve URLs presignadas por parte (re-emissíveis — retry de uma parte só),
+> `GET /videos/{id}/parts` mostra o que já chegou (resume após queda de conexão) e
+> `POST /videos/{id}/complete-multipart` faz o **servidor** montar o objeto lendo as partes do
+> storage (o cliente nunca lida com ETags) e conferir o tamanho total. Depois disso o fluxo é
+> idêntico ao do PUT único a partir do Passo 3.
+
 ## 6. Passo 3 — Confirmar o upload: `POST /api/v1/videos/{id}/complete-upload` <a id="6-passo-3"></a>
 
 O storage não avisa a API quando o PUT termina — quem avisa é o cliente. A API então **verifica**

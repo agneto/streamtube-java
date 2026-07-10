@@ -123,6 +123,9 @@ public final class PersistenceMapper {
         v.likesCount(),
         v.dislikesCount(),
         v.commentsCount(),
+        v.uploadId(),
+        v.uploadSizeBytes(),
+        v.uploadPartSize(),
         v.createdAt(),
         v.updatedAt());
   }
@@ -147,6 +150,9 @@ public final class PersistenceMapper {
         e.getLikesCount(),
         e.getDislikesCount(),
         e.getCommentsCount(),
+        e.getUploadId(),
+        e.getUploadSizeBytes(),
+        e.getUploadPartSize(),
         e.getCreatedAt(),
         e.getUpdatedAt());
   }

@@ -48,7 +48,8 @@ class ProcessVideoUseCaseTest {
   private Video pendingVideo() {
     return new Video(
         videoId, UUID.randomUUID(), "Title", "slug123", VideoStatus.QUEUED, "videos/slug123",
-        null, null, null, null, null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, NOW, NOW);
+        null, null, null, null, null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, null, null,
+        null, NOW, NOW);
   }
 
   @Test
@@ -83,7 +84,8 @@ class ProcessVideoUseCaseTest {
     Video stuck =
         new Video(
             videoId, UUID.randomUUID(), "T", "slug123", VideoStatus.PROCESSING, "videos/slug123",
-            null, null, null, null, null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, NOW, NOW);
+            null, null, null, null, null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, null,
+            null, null, NOW, NOW);
     when(videos.findById(videoId)).thenReturn(Optional.of(stuck));
     when(storage.presignInternal("videos/slug123")).thenReturn("http://minio/internal");
     when(analyzer.probe("http://minio/internal")).thenReturn(new ProbeResult(5.0, "{}"));
@@ -100,7 +102,7 @@ class ProcessVideoUseCaseTest {
         new Video(
             videoId, UUID.randomUUID(), "T", "slug123", VideoStatus.READY, "videos/slug123",
             "thumbnails/slug123.jpg", 10.0, "{}", null, null, null, Visibility.PUBLIC, null, 0L,
-            0L, 0L, 0L, NOW, NOW);
+            0L, 0L, 0L, null, null, null, NOW, NOW);
     when(videos.findById(videoId)).thenReturn(Optional.of(ready));
 
     useCase.execute(videoId);

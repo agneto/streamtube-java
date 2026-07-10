@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.streamtube.application.port.out.MailSender;
-import com.streamtube.application.port.out.StoragePort;
+import com.streamtube.api.testsupport.FakeStorage;
 import com.streamtube.application.port.out.VideoProcessingPublisher;
 import java.sql.Connection;
 import java.util.HashMap;
@@ -400,35 +400,6 @@ class SocialE2ETest {
     public void sendPasswordResetEmail(String to, String rawToken) {}
   }
 
-  static class FakeStorage implements StoragePort {
-    @Override
-    public String presignUpload(String key, long contentLength, String contentType) {
-      return "http://localhost:9000/" + key + "?upload&sig=x";
-    }
-
-    @Override
-    public String presignStream(String key) {
-      return "http://localhost:9000/" + key + "?stream&sig=x";
-    }
-
-    @Override
-    public String presignDownload(String key, String filename) {
-      return "http://localhost:9000/" + key + "?download&response-content-disposition=attachment";
-    }
-
-    @Override
-    public String presignInternal(String key) {
-      return "http://minio:9000/" + key + "?internal&sig=x";
-    }
-
-    @Override
-    public void putObject(String key, byte[] body, String contentType) {}
-
-    @Override
-    public boolean objectExists(String key) {
-      return true;
-    }
-  }
 
   static class FakePublisher implements VideoProcessingPublisher {
     @Override
