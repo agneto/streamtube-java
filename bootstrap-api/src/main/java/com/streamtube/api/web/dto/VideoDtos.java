@@ -68,6 +68,7 @@ public final class VideoDtos {
       long dislikes,
       long commentsCount,
       String myReaction,
+      String hlsUrl,
       UUID channelId,
       Instant createdAt) {}
 

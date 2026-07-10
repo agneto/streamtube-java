@@ -1,17 +1,17 @@
 # phase-09-hls — Progress
 
-**Status:** not started
-**SIs:** 0/7 completed
+**Status:** completed
+**SIs:** 7/7 completed
 
 | SI | Description | Status | Tests |
 |----|-------------|--------|-------|
-| SI-09.1 | Domain (hlsMasterKey + markReady parameter) | pending | |
-| SI-09.2 | Flyway V11 (hls_master_key) | pending | |
-| SI-09.3 | Worker (VideoTranscoder port, ffmpeg ladder, upload, orchestration) | pending | |
-| SI-09.4 | API use cases (master + rendition playlists, rewrite, views) | pending | |
-| SI-09.5 | Web (playlist routes, hlsUrl no info, Postman) | pending | |
-| SI-09.6 | Tests (unit ladder/rewrite + E2E fake transcoder + smoke real) | pending | |
-| SI-09.7 | Docs + DoD | pending | |
+| SI-09.1 | Domain (hlsMasterKey + markReady parameter) | done | 4-arg markReady overload kept, so only the worker path ripples |
+| SI-09.2 | Flyway V11 (hls_master_key) | done | applied by Testcontainers E2E |
+| SI-09.3 | Worker (VideoTranscoder port, ffmpeg ladder, upload, orchestration) | done | ladder unit-tested (never upscales, even heights); temp workspace deleted in finally; 30 min transcode timeout |
+| SI-09.4 | API use cases (master + rendition playlists, rewrite, views) | done | HlsPlaylistUseCasesTest: only URI lines rewritten, master counts view (published only), rendition/segments never count, 404 matrix incl. pattern-gated rendition names |
+| SI-09.5 | Web (playlist routes, hlsUrl no info, Postman) | done | application/vnd.apple.mpegurl + Cache-Control no-store; no security change |
+| SI-09.6 | Tests (unit ladder/rewrite + E2E fake transcoder + smoke real) | done | E2E: visibility matrix on playlists, master counts exactly 1 view, progressive fallback for the old catalog |
+| SI-09.7 | Docs + DoD | done | system-design §6 flips HLS to done; deploy.md §5 (ack timeout, disco, reprocesso manual); fluxo-upload + GUIA-DE-USO |
 
 ## Notes
 

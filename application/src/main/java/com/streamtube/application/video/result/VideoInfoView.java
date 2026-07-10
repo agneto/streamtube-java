@@ -22,6 +22,7 @@ public record VideoInfoView(
     long dislikes,
     long commentsCount,
     String myReaction,
+    String hlsUrl,
     UUID channelId,
     Instant createdAt) {
 
@@ -46,6 +47,10 @@ public record VideoInfoView(
         video.dislikesCount(),
         video.commentsCount(),
         myReaction == null ? null : myReaction.name(),
+        // null = no ladder (pre-Phase-09 catalog): the frontend falls back to /stream
+        video.hlsMasterKey() == null
+            ? null
+            : "/api/v1/videos/" + video.slug() + "/hls/master.m3u8",
         video.channelId(),
         video.createdAt());
   }

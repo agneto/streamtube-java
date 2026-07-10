@@ -7,5 +7,6 @@ public interface VideoAnalyzer {
 
   byte[] extractThumbnail(String inputUrl);
 
-  record ProbeResult(Double durationSeconds, String rawJson) {}
+  /** {@code height} is the source's video-stream height (drives the HLS ladder); may be null. */
+  record ProbeResult(Double durationSeconds, Integer height, String rawJson) {}
 }
