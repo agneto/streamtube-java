@@ -1,0 +1,46 @@
+# CDN edge (dev simulation of a commercial token-auth CDN — Bunny/KeyCDN-style secure_link).
+# ${CDN_SECRET} is substituted by the nginx image's envsubst at container start; every $var
+# without braces is a normal nginx variable.
+
+proxy_cache_path /var/cache/nginx/cdn levels=1:2 keys_zone=cdn:10m max_size=1g
+                 inactive=7d use_temp_path=off;
+
+# Named upstream: proxy_pass with a variable ($uri) would otherwise require a runtime resolver.
+upstream minio_origin {
+  server minio:9000;
+}
+
+server {
+  listen 80;
+
+  location = /healthz {
+    return 200 'ok';
+  }
+
+  location / {
+    # Token: st = base64url(md5("{expires}{uri}{secret}")), e = expires — must match CdnUrlSigner.
+    # ${uri} keeps braces so envsubst (which only substitutes DEFINED env vars) leaves it for
+    # nginx: "$uri${CDN_SECRET}" would substitute into "$uridev-cdn-secret" and break parsing.
+    secure_link $arg_st,$arg_e;
+    secure_link_md5 "$secure_link_expires${uri}${CDN_SECRET}";
+    if ($secure_link = "") { return 403; }  # missing or tampered token
+    if ($secure_link = "0") { return 410; } # expired
+
+    # Downloads: filename rides the (unsigned) dl arg; empty -> header not added.
+    set $disposition "";
+    if ($arg_dl) {
+      set $disposition "attachment; filename=\"$arg_dl\"";
+    }
+
+    # $uri (no query): the origin never sees st/e, and the cache key ignores them — the same
+    # object is a HIT across viewers, which is the whole point of the edge.
+    proxy_pass http://minio_origin$uri;
+    # The upstream name has an underscore (invalid hostname for S3): send the real origin host.
+    proxy_set_header Host "minio:9000";
+    proxy_cache cdn;
+    proxy_cache_key $uri;
+    proxy_cache_valid 200 7d;
+    add_header X-Cache-Status $upstream_cache_status always;
+    add_header Content-Disposition $disposition;
+  }
+}
