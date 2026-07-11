@@ -25,6 +25,11 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_FROM: ${MAIL_FROM:?MAIL_FROM is required in production}
       APP_BASE_URL: ${APP_BASE_URL:?APP_BASE_URL is required in production}
+      # Optional CDN profile: with CDN_ENABLED=true the app itself fails fast if base-url/secret
+      # are missing. Use a managed CDN (see docs/deploy.md) or the bundled edge (--profile edge).
+      CDN_ENABLED: ${CDN_ENABLED:-false}
+      CDN_BASE_URL: ${CDN_BASE_URL:-}
+      CDN_SECRET: ${CDN_SECRET:-}
 
   worker:
     restart: unless-stopped
@@ -74,6 +79,14 @@ services:
   # Dev-only mail catcher: the profile keeps it from starting in production.
   mailpit:
     profiles: ["dev-only"]
+
+  # The bundled edge only starts when explicitly asked for (--profile edge): with a managed CDN
+  # (the usual production choice) it must not run at all.
+  cdn:
+    profiles: ["edge"]
+    restart: unless-stopped
+    environment:
+      CDN_SECRET: ${CDN_SECRET:-}
 
 volumes:
   pgdata:

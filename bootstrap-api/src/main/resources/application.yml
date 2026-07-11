@@ -84,6 +84,14 @@ hls:
   # able to play to the end, so this is much longer than the 1h read TTL (default 6h).
   segment-url-ttl-seconds: ${HLS_SEGMENT_URL_TTL_SECONDS:21600}
 
+cdn:
+  # Opt-in: with false (default), read URLs stay presigned straight to the storage. With true,
+  # stream/download/thumbnails/HLS segments point at the CDN edge (base-url + secure_link token);
+  # uploads and worker-internal reads always stay on the storage.
+  enabled: ${CDN_ENABLED:false}
+  base-url: ${CDN_BASE_URL:}
+  secret: ${CDN_SECRET:}
+
 management:
   endpoints:
     web:

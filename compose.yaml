@@ -23,6 +23,10 @@ services:
       STORAGE_SECRET_KEY: streamtube_secret
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+      # Read URLs point at the CDN edge below; uploads stay presigned straight to MinIO.
+      CDN_ENABLED: "true"
+      CDN_BASE_URL: http://localhost:8090/streamtube-videos
+      CDN_SECRET: dev-cdn-secret
     depends_on:
       db:
         condition: service_healthy
@@ -126,8 +130,28 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 streamtube streamtube_secret &&
       mc mb --ignore-existing local/streamtube-videos &&
+      mc anonymous set download local/streamtube-videos &&
       echo 'Bucket ready.'
       "
+
+  # CDN edge simulation: token-auth (secure_link) + response cache in front of MinIO reads.
+  # The anonymous-read bucket + unguessable keys trade-off is documented in docs/deploy.md.
+  cdn:
+    image: nginx:1.27-alpine
+    ports:
+      - "8090:80"
+    environment:
+      CDN_SECRET: dev-cdn-secret
+    volumes:
+      - ./infra/cdn/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mailpit:
     image: axllent/mailpit

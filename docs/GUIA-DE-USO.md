@@ -159,6 +159,13 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 | GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
 | GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
+### CDN (Fase 10)
+
+Perfil opt-in: com `CDN_ENABLED=true` (padrão do compose de dev), as URLs de leitura (stream,
+download, thumbnails, segmentos HLS) apontam para o edge nginx em `http://localhost:8090` com
+token de expiração e cache (`X-Cache-Status: HIT` na segunda busca). Uploads continuam indo
+direto ao MinIO. Nenhum endpoint muda — só o host das URLs devolvidas.
+
 ### Streaming adaptativo HLS (Fase 09)
 
 | Método | Caminho | Autenticação | O que faz |
