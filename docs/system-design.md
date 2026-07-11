@@ -285,10 +285,14 @@ mapeia essas tabelas.
    master) e os **segmentos** vão direto do storage com URLs presignadas de TTL longo (6h).
    Catálogo antigo (`hls_master_key` null) toca pelo `/stream` progressivo.
 
+3. ~~**CDN** na frente do storage~~ — **Fase 10**: perfil opt-in (`CDN_ENABLED`) em que as URLs
+   públicas de leitura (stream, download, thumbnails, segmentos HLS) apontam para um edge com
+   token `secure_link` (o esquema das CDNs comerciais) e cache de resposta; uploads e leituras
+   internas do worker continuam presignados direto no storage. A integração é um decorator sobre
+   o `StoragePort` — zero mudança nos use cases. A autorização segue na emissão de URL pela API.
+
 **Caminhos naturais restantes, sem mudar a arquitetura:**
 
-3. **CDN** na frente do storage para leitura (segmentos HLS e o 302 passariam a apontar para a
-   CDN; o desenho de playlist já acomoda — troca-se o presigner por URLs assinadas da CDN).
 4. **Notificação de bucket** substituindo o `complete-upload` se o requisito de portabilidade
    mudar (§3.3).
 5. **Limpeza de órfãos** — job periódico para `PENDING_UPLOAD` antigos e objetos sem registro

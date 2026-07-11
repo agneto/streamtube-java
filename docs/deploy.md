@@ -87,7 +87,27 @@ mc ilm rule add local/streamtube-videos --expire-abort-incomplete-multipart-days
 Mesma filosofia dos rascunhos `PENDING_UPLOAD` órfãos (system-design §3.3): limpeza é tarefa de
 infraestrutura, não um cron dentro da aplicação.
 
-## 7. Checklist antes do primeiro deploy
+## 7. CDN para leitura (Fase 10)
+
+Com `CDN_ENABLED=true` (+ `CDN_BASE_URL` e `CDN_SECRET` — sem eles a API aborta no boot), todas
+as URLs públicas de leitura (stream, download, thumbnails, segmentos HLS) apontam para o edge com
+token `secure_link`; uploads e leituras do worker seguem no storage.
+
+- **CDN gerenciada (recomendado em produção):** o token do signer é o formato `secure_link` —
+  compatível com token-auth de BunnyCDN/KeyCDN (confira a ordem de concatenação) ou substituível
+  por CloudFront signed URLs trocando só o signer. Proteja o origin com OAC (CloudFront) ou
+  allowlist de IP do provedor.
+- **Edge embutido (nginx):** `docker compose ... --profile edge up -d` sobe o serviço `cdn`
+  (porta 8090) com validação de token (403 adulterado / 410 expirado) e cache (`X-Cache-Status`).
+  Termine TLS na frente dele como nos demais.
+- **Trade-off do origin:** o bucket fica com leitura anônima e a proteção real é a combinação
+  chaves não adivinháveis (slugs de 16 chars — mesma classe dos links UNLISTED) + rede: em
+  produção, restrinja o acesso de leitura ao 9000 para o edge/CDN. O token protege o caminho
+  público e expira; não é o único portão.
+- **Purge:** desnecessário por desenho — vídeos são imutáveis após READY e a thumbnail custom
+  troca de chave (`-custom`), então nunca há conteúdo velho com a mesma URL.
+
+## 8. Checklist antes do primeiro deploy
 
 - [ ] `.env` com todos os segredos (tabela acima) — `docker compose ... config` valida sem subir
 - [ ] TLS na frente de 8080 e 9000; `STORAGE_PUBLIC_URL`/`APP_BASE_URL` com os hosts públicos
