@@ -126,6 +126,7 @@ public final class PersistenceMapper {
         v.uploadId(),
         v.uploadSizeBytes(),
         v.uploadPartSize(),
+        v.hlsMasterKey(),
         v.createdAt(),
         v.updatedAt());
   }
@@ -153,6 +154,7 @@ public final class PersistenceMapper {
         e.getUploadId(),
         e.getUploadSizeBytes(),
         e.getUploadPartSize(),
+        e.getHlsMasterKey(),
         e.getCreatedAt(),
         e.getUpdatedAt());
   }

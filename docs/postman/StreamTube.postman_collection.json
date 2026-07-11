@@ -445,6 +445,58 @@
       ]
     },
     {
+      "name": "HLS",
+      "item": [
+        {
+          "name": "1. Master playlist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('playlist HLS com renditions', () => {",
+                  "  pm.expect(pm.response.text()).to.include('#EXTM3U');",
+                  "  pm.expect(pm.response.text()).to.include('/hls/');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/hls/master.m3u8", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "hls", "master.m3u8"] },
+            "description": "Playlist master do vídeo (só vídeos processados após a Fase 09 — 'hlsUrl' no Get info indica). CONTA UMA VIEW quando publicado. As linhas de rendition apontam de volta para a API. Vídeo sem HLS: 404 (use /stream)."
+          }
+        },
+        {
+          "name": "2. Playlist da rendition (ex.: 480p)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('segmentos presignados', () => pm.response.text().includes('X-Amz-Signature'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/videos/{{slug}}/hls/480p/playlist.m3u8", "host": ["{{baseUrl}}"], "path": ["api", "v1", "videos", "{{slug}}", "hls", "480p", "playlist.m3u8"] },
+            "description": "Playlist de uma qualidade com cada segmento reescrito para URL presignada (TTL 6h — um filme longo toca até o fim). NÃO conta view (só a master conta). Rendition fora da escada do vídeo: 404."
+          }
+        }
+      ]
+    },
+    {
       "name": "Upload multipart",
       "item": [
         {

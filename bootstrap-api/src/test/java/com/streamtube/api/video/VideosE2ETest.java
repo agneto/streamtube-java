@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -600,6 +601,104 @@ class VideosE2ETest {
             delete("/api/v1/videos/" + id + "/multipart").header("Authorization", "Bearer " + token))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("NO_ACTIVE_UPLOAD"));
+  }
+
+  @Test
+  void hlsPlaylistsAreServedThroughTheApiWithTheVisibilityMatrix() throws Exception {
+    String token = registerConfirmLogin("hls@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Com HLS"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String slug = init.get("slug").asText();
+
+    // simulate the worker: READY + ladder in storage + hls_master_key on the row
+    markReady(slug);
+    try (Connection c = dataSource.getConnection();
+        var st =
+            c.prepareStatement("UPDATE videos SET hls_master_key = ? WHERE slug = ?")) {
+      st.setString(1, "hls/" + slug + "/master.m3u8");
+      st.setString(2, slug);
+      st.executeUpdate();
+    }
+    fakeStorage.putTextObject(
+        "hls/" + slug + "/master.m3u8",
+        "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=928000\n360p/playlist.m3u8\n");
+    fakeStorage.putTextObject(
+        "hls/" + slug + "/360p/playlist.m3u8",
+        "#EXTM3U\n#EXTINF:6.0,\nseg-000.ts\n#EXT-X-ENDLIST\n");
+
+    // draft: 404 for anonymous, owner plays without counting a view
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug + "/hls/master.m3u8"))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(
+            get("/api/v1/videos/" + slug + "/hls/master.m3u8")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug).header("Authorization", "Bearer " + token))
+        .andExpect(jsonPath("$.views").value(0))
+        .andExpect(jsonPath("$.hlsUrl").value("/api/v1/videos/" + slug + "/hls/master.m3u8"));
+
+    mockMvc
+        .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk());
+
+    // published: master rewrites renditions to API paths and counts ONE view
+    String master =
+        mockMvc
+            .perform(get("/api/v1/videos/" + slug + "/hls/master.m3u8"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(master)
+        .contains("#EXT-X-STREAM-INF:BANDWIDTH=928000")
+        .contains("/api/v1/videos/" + slug + "/hls/360p/playlist.m3u8");
+
+    // rendition playlist: segments presigned with the long TTL; does NOT count views
+    String playlist =
+        mockMvc
+            .perform(get("/api/v1/videos/" + slug + "/hls/360p/playlist.m3u8"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(playlist)
+        .contains("#EXTINF:6.0,")
+        .contains("hls/" + slug + "/360p/seg-000.ts?stream&ttl=21600");
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug))
+        .andExpect(jsonPath("$.views").value(1)); // only the master fetch counted
+
+    // unknown rendition of a real ladder -> 404
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug + "/hls/720p/playlist.m3u8"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void videosWithoutHlsKeepTheProgressiveFallback() throws Exception {
+    String token = registerConfirmLogin("no-hls@test.com");
+    String slug = createCategorizedVideo(token, "Sem HLS", null, null, true);
+
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hlsUrl").doesNotExist());
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug + "/hls/master.m3u8"))
+        .andExpect(status().isNotFound());
+    mockMvc.perform(get("/api/v1/videos/" + slug + "/stream")).andExpect(status().isFound());
   }
 
   @Test

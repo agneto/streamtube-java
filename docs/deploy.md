@@ -58,7 +58,22 @@ antes. Em upgrades: `git pull && docker compose -f compose.yaml -f compose.prod.
 - Os bytes de vídeo **nunca passam pela API** (upload e playback vão direto ao storage), então o
   dimensionamento da API é por JSON/Postgres, não por tráfego de vídeo.
 
-## 5. Uploads multipart abandonados (lifecycle do bucket)
+## 5. Transcodificação HLS (Fase 09) — o que muda na operação
+
+- **PROCESSING demora mais**: além de ffprobe + thumbnail, o worker transcodifica a escada HLS
+  (até 3 qualidades). Vídeos longos podem levar dezenas de minutos.
+- **Ack timeout do RabbitMQ**: o broker derruba entregas não confirmadas após
+  `consumer_timeout` (default 30 min) — um transcode mais longo que isso vira redelivery em
+  loop. Para catálogos com vídeos longos, aumente (`consumer_timeout` no rabbitmq.conf) ou
+  escale a régua de bitrate/preset.
+- **Disco do worker**: a escada é montada em disco local antes do upload — reserve ~2–3× o
+  tamanho do maior vídeo esperado em `/tmp` do container.
+- **Catálogo antigo**: vídeos processados antes da fase 09 não têm HLS (`hlsUrl: null`) e tocam
+  pelo `/stream` progressivo. Para gerar a escada retroativamente, reenfileire o vídeo
+  manualmente (publique `{videoId}` na fila `video.processing` — o processamento é idempotente e
+  regrava thumbnail/metadata/HLS).
+
+## 6. Uploads multipart abandonados (lifecycle do bucket)
 
 Uma sessão multipart iniciada e abandonada segura bytes **invisíveis** no bucket (as partes não
 aparecem como objetos). Configure a regra de lifecycle que aborta uploads incompletos:
@@ -72,7 +87,7 @@ mc ilm rule add local/streamtube-videos --expire-abort-incomplete-multipart-days
 Mesma filosofia dos rascunhos `PENDING_UPLOAD` órfãos (system-design §3.3): limpeza é tarefa de
 infraestrutura, não um cron dentro da aplicação.
 
-## 6. Checklist antes do primeiro deploy
+## 7. Checklist antes do primeiro deploy
 
 - [ ] `.env` com todos os segredos (tabela acima) — `docker compose ... config` valida sem subir
 - [ ] TLS na frente de 8080 e 9000; `STORAGE_PUBLIC_URL`/`APP_BASE_URL` com os hosts públicos

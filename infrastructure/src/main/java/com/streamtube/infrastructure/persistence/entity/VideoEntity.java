@@ -90,6 +90,9 @@ public class VideoEntity {
   @Column(name = "upload_part_size")
   private Long uploadPartSize;
 
+  @Column(name = "hls_master_key", length = 500)
+  private String hlsMasterKey;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -120,6 +123,7 @@ public class VideoEntity {
       String uploadId,
       Long uploadSizeBytes,
       Long uploadPartSize,
+      String hlsMasterKey,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -143,6 +147,7 @@ public class VideoEntity {
     this.uploadId = uploadId;
     this.uploadSizeBytes = uploadSizeBytes;
     this.uploadPartSize = uploadPartSize;
+    this.hlsMasterKey = hlsMasterKey;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -229,6 +234,10 @@ public class VideoEntity {
 
   public Long getUploadPartSize() {
     return uploadPartSize;
+  }
+
+  public String getHlsMasterKey() {
+    return hlsMasterKey;
   }
 
   public Instant getCreatedAt() {

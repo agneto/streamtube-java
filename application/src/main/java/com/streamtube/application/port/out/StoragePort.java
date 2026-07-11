@@ -15,6 +15,16 @@ public interface StoragePort {
   /** Presigned GET URL for streaming (public host). */
   String presignStream(String key);
 
+  /**
+   * Presigned GET URL with an explicit TTL (public host). HLS segments use this: a VOD player
+   * fetches the rendition playlist once and must be able to play to the end — the default read
+   * TTL would 403 a long video mid-playback.
+   */
+  String presignStream(String key, long ttlSeconds);
+
+  /** Reads a small UTF-8 text object (HLS playlists) into memory. */
+  String getObjectText(String key);
+
   /** Presigned GET URL forcing a download with the given filename (public host). */
   String presignDownload(String key, String filename);
 

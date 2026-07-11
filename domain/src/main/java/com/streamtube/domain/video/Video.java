@@ -39,6 +39,7 @@ public class Video {
   private String uploadId;
   private Long uploadSizeBytes;
   private Long uploadPartSize;
+  private String hlsMasterKey;
   private final Instant createdAt;
   private Instant updatedAt;
 
@@ -64,6 +65,7 @@ public class Video {
       String uploadId,
       Long uploadSizeBytes,
       Long uploadPartSize,
+      String hlsMasterKey,
       Instant createdAt,
       Instant updatedAt) {
     this.id = id;
@@ -87,6 +89,7 @@ public class Video {
     this.uploadId = uploadId;
     this.uploadSizeBytes = uploadSizeBytes;
     this.uploadPartSize = uploadPartSize;
+    this.hlsMasterKey = hlsMasterKey;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -96,7 +99,7 @@ public class Video {
       UUID id, UUID channelId, String title, String slug, String storageKey, Instant now) {
     return new Video(
         id, channelId, title, slug, VideoStatus.PENDING_UPLOAD, storageKey, null, null, null, null,
-        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, null, null, null, now, now);
+        null, null, Visibility.PUBLIC, null, 0L, 0L, 0L, 0L, null, null, null, null, now, now);
   }
 
   /**
@@ -193,11 +196,22 @@ public class Video {
     this.updatedAt = now;
   }
 
+  /** Convenience for call sites without an HLS ladder (tests, pre-Phase-09 semantics). */
   public void markReady(Double durationSeconds, String thumbnailKey, String metadata, Instant now) {
+    markReady(durationSeconds, thumbnailKey, metadata, null, now);
+  }
+
+  public void markReady(
+      Double durationSeconds,
+      String thumbnailKey,
+      String metadata,
+      String hlsMasterKey,
+      Instant now) {
     this.status = VideoStatus.READY;
     this.durationSeconds = durationSeconds;
     this.thumbnailKey = thumbnailKey;
     this.metadata = metadata;
+    this.hlsMasterKey = hlsMasterKey;
     this.errorMessage = null;
     this.updatedAt = now;
   }
@@ -313,6 +327,11 @@ public class Video {
 
   public Long uploadPartSize() {
     return uploadPartSize;
+  }
+
+  /** Master playlist key of the HLS ladder; null = no HLS (pre-Phase-09 catalog). */
+  public String hlsMasterKey() {
+    return hlsMasterKey;
   }
 
   public Instant createdAt() {

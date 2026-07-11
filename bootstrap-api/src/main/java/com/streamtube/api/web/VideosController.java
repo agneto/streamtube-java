@@ -24,6 +24,8 @@ import com.streamtube.application.social.SetVideoReactionUseCase;
 import com.streamtube.application.video.AbortMultipartUploadUseCase;
 import com.streamtube.application.video.CompleteMultipartUploadUseCase;
 import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
+import com.streamtube.application.video.GetHlsMasterUseCase;
+import com.streamtube.application.video.GetHlsPlaylistUseCase;
 import com.streamtube.application.video.InitiateMultipartUploadUseCase;
 import com.streamtube.application.video.IssuePartUrlsUseCase;
 import com.streamtube.application.video.ListHomeVideosUseCase;
@@ -89,6 +91,8 @@ public class VideosController {
   private final ListUploadedPartsUseCase listUploadedParts;
   private final CompleteMultipartUploadUseCase completeMultipart;
   private final AbortMultipartUploadUseCase abortMultipart;
+  private final GetHlsMasterUseCase getHlsMaster;
+  private final GetHlsPlaylistUseCase getHlsPlaylist;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -110,7 +114,9 @@ public class VideosController {
       IssuePartUrlsUseCase issuePartUrls,
       ListUploadedPartsUseCase listUploadedParts,
       CompleteMultipartUploadUseCase completeMultipart,
-      AbortMultipartUploadUseCase abortMultipart) {
+      AbortMultipartUploadUseCase abortMultipart,
+      GetHlsMasterUseCase getHlsMaster,
+      GetHlsPlaylistUseCase getHlsPlaylist) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
@@ -131,6 +137,8 @@ public class VideosController {
     this.listUploadedParts = listUploadedParts;
     this.completeMultipart = completeMultipart;
     this.abortMultipart = abortMultipart;
+    this.getHlsMaster = getHlsMaster;
+    this.getHlsPlaylist = getHlsPlaylist;
   }
 
   @GetMapping
@@ -315,6 +323,29 @@ public class VideosController {
         .toList();
   }
 
+  @GetMapping(value = "/{slug}/hls/master.m3u8", produces = "application/vnd.apple.mpegurl")
+  @Operation(summary = "HLS master playlist (counts a view; renditions point back at the API)")
+  public ResponseEntity<String> hlsMaster(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("slug") String slug) {
+    return playlist(getHlsMaster.execute(slug, viewerId(principal)));
+  }
+
+  @GetMapping(
+      value = "/{slug}/hls/{rendition}/playlist.m3u8",
+      produces = "application/vnd.apple.mpegurl")
+  @Operation(summary = "HLS rendition playlist (segments rewritten to presigned URLs)")
+  public ResponseEntity<String> hlsPlaylist(
+      @AuthenticationPrincipal AuthenticatedUser principal,
+      @PathVariable("slug") String slug,
+      @PathVariable("rendition") String rendition) {
+    return playlist(getHlsPlaylist.execute(slug, rendition, viewerId(principal)));
+  }
+
+  /** Every fetch mints fresh signatures — playlists must never be cached. */
+  private static ResponseEntity<String> playlist(String content) {
+    return ResponseEntity.ok().header("Cache-Control", "no-store").body(content);
+  }
+
   @GetMapping("/{slug}/stream")
   @Operation(summary = "Redirect (302) to a presigned streaming URL")
   public ResponseEntity<Void> stream(
@@ -355,6 +386,7 @@ public class VideosController {
         v.dislikes(),
         v.commentsCount(),
         v.myReaction(),
+        v.hlsUrl(),
         v.channelId(),
         v.createdAt());
   }

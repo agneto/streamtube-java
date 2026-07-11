@@ -38,7 +38,14 @@ public class FfmpegVideoAnalyzer implements VideoAnalyzer {
       JsonNode root = objectMapper.readTree(json);
       JsonNode duration = root.path("format").path("duration");
       Double seconds = duration.isMissingNode() ? null : duration.asDouble();
-      return new ProbeResult(seconds, json);
+      Integer height = null;
+      for (JsonNode stream : root.path("streams")) {
+        if ("video".equals(stream.path("codec_type").asText()) && stream.hasNonNull("height")) {
+          height = stream.path("height").asInt();
+          break;
+        }
+      }
+      return new ProbeResult(seconds, height, json);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to parse ffprobe output", e);
     }
