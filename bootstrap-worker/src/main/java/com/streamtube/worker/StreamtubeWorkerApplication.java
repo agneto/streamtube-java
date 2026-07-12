@@ -24,6 +24,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     })
 @EntityScan("com.streamtube.infrastructure.persistence.entity")
 @EnableJpaRepositories("com.streamtube.infrastructure.persistence.repository")
+@org.springframework.scheduling.annotation.EnableScheduling // lifecycle sweeper (Phase 11)
 public class StreamtubeWorkerApplication {
 
   public static void main(String[] args) {

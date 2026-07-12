@@ -73,7 +73,24 @@ antes. Em upgrades: `git pull && docker compose -f compose.yaml -f compose.prod.
   manualmente (publique `{videoId}` na fila `video.processing` — o processamento é idempotente e
   regrava thumbnail/metadata/HLS).
 
-## 6. Uploads multipart abandonados (lifecycle do bucket)
+## 6. Ciclo de vida: deleção e órfãos (Fase 11)
+
+O worker roda um **sweeper** agendado (`CLEANUP_INTERVAL_CRON`, default a cada 15 min) que:
+
+- **Drena a fila `storage_cleanups`**: cada `DELETE /videos/{id}` apaga a linha na hora e
+  enfileira os prefixos de storage (original, thumbnails, escada HLS) na mesma transação; o
+  sweeper remove os objetos e só então tira a entrada da fila — falha de storage fica na fila e
+  tenta de novo no próximo tick (at-least-once; apagar chave inexistente é no-op).
+- **Aposenta rascunhos abandonados**: `PENDING_UPLOAD` mais velho que
+  `CLEANUP_STALE_UPLOAD_DAYS` (default 7) tem a sessão multipart abortada, os prefixos
+  enfileirados e a linha removida.
+
+Com múltiplos workers o sweep pode rodar em dobro — inofensivo, tudo é idempotente. Fila
+crescendo (`SELECT count(*) FROM storage_cleanups`) = storage rejeitando deleções; investigue.
+Reconciliação total bucket↔banco (objetos sem registro por causas externas) permanece um
+procedimento manual: liste os prefixos de primeiro nível e confira os slugs contra `videos`.
+
+## 7. Uploads multipart abandonados (lifecycle do bucket)
 
 Uma sessão multipart iniciada e abandonada segura bytes **invisíveis** no bucket (as partes não
 aparecem como objetos). Configure a regra de lifecycle que aborta uploads incompletos:
@@ -87,7 +104,7 @@ mc ilm rule add local/streamtube-videos --expire-abort-incomplete-multipart-days
 Mesma filosofia dos rascunhos `PENDING_UPLOAD` órfãos (system-design §3.3): limpeza é tarefa de
 infraestrutura, não um cron dentro da aplicação.
 
-## 7. CDN para leitura (Fase 10)
+## 8. CDN para leitura (Fase 10)
 
 Com `CDN_ENABLED=true` (+ `CDN_BASE_URL` e `CDN_SECRET` — sem eles a API aborta no boot), todas
 as URLs públicas de leitura (stream, download, thumbnails, segmentos HLS) apontam para o edge com
@@ -107,7 +124,7 @@ token `secure_link`; uploads e leituras do worker seguem no storage.
 - **Purge:** desnecessário por desenho — vídeos são imutáveis após READY e a thumbnail custom
   troca de chave (`-custom`), então nunca há conteúdo velho com a mesma URL.
 
-## 8. Checklist antes do primeiro deploy
+## 9. Checklist antes do primeiro deploy
 
 - [ ] `.env` com todos os segredos (tabela acima) — `docker compose ... config` valida sem subir
 - [ ] TLS na frente de 8080 e 9000; `STORAGE_PUBLIC_URL`/`APP_BASE_URL` com os hosts públicos

@@ -159,6 +159,15 @@ docker compose down -v     # remove TAMBÉM os volumes (apaga o banco e o storag
 | GET | `/api/v1/videos/{slug}/stream` | pública | Redireciona (302) para a URL de streaming (só se `READY`) |
 | GET | `/api/v1/videos/{slug}/download` | pública | Redireciona (302) para download (só se `READY`) |
 
+### Ciclo de vida (Fase 11)
+
+| Método | Caminho | Autenticação | O que faz |
+|--------|---------|--------------|-----------|
+| DELETE | `/api/v1/videos/{id}` | autenticada (dono) | Apaga o vídeo em qualquer status: linha + interações na hora, arquivos do storage via sweeper |
+
+Rascunhos `PENDING_UPLOAD` abandonados há mais de 7 dias são removidos automaticamente pelo
+sweeper do worker (no compose de dev ele roda a cada 20s).
+
 ### CDN (Fase 10)
 
 Perfil opt-in: com `CDN_ENABLED=true` (padrão do compose de dev), as URLs de leitura (stream,

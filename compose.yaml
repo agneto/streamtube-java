@@ -60,6 +60,8 @@ services:
       STORAGE_BUCKET: streamtube-videos
       STORAGE_ACCESS_KEY: streamtube
       STORAGE_SECRET_KEY: streamtube_secret
+      # Dev: sweep every 20s so deletions/purges are observable immediately (prod default: 15min).
+      CLEANUP_INTERVAL_CRON: "*/20 * * * * *"
     depends_on:
       db:
         condition: service_healthy

@@ -24,6 +24,7 @@ import com.streamtube.application.social.SetVideoReactionUseCase;
 import com.streamtube.application.video.AbortMultipartUploadUseCase;
 import com.streamtube.application.video.CompleteMultipartUploadUseCase;
 import com.streamtube.application.video.CompleteThumbnailUploadUseCase;
+import com.streamtube.application.video.DeleteVideoUseCase;
 import com.streamtube.application.video.GetHlsMasterUseCase;
 import com.streamtube.application.video.GetHlsPlaylistUseCase;
 import com.streamtube.application.video.InitiateMultipartUploadUseCase;
@@ -93,6 +94,7 @@ public class VideosController {
   private final AbortMultipartUploadUseCase abortMultipart;
   private final GetHlsMasterUseCase getHlsMaster;
   private final GetHlsPlaylistUseCase getHlsPlaylist;
+  private final DeleteVideoUseCase deleteVideo;
 
   public VideosController(
       InitiateUploadUseCase initiateUpload,
@@ -116,7 +118,8 @@ public class VideosController {
       CompleteMultipartUploadUseCase completeMultipart,
       AbortMultipartUploadUseCase abortMultipart,
       GetHlsMasterUseCase getHlsMaster,
-      GetHlsPlaylistUseCase getHlsPlaylist) {
+      GetHlsPlaylistUseCase getHlsPlaylist,
+      DeleteVideoUseCase deleteVideo) {
     this.initiateUpload = initiateUpload;
     this.completeUpload = completeUpload;
     this.getVideoInfo = getVideoInfo;
@@ -139,6 +142,15 @@ public class VideosController {
     this.abortMultipart = abortMultipart;
     this.getHlsMaster = getHlsMaster;
     this.getHlsPlaylist = getHlsPlaylist;
+    this.deleteVideo = deleteVideo;
+  }
+
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Delete own video: row now, storage artifacts via the async sweeper")
+  public void delete(
+      @AuthenticationPrincipal AuthenticatedUser principal, @PathVariable("id") UUID id) {
+    deleteVideo.execute(id, principal.id());
   }
 
   @GetMapping

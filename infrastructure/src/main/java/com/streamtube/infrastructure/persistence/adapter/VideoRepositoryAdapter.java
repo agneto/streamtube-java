@@ -3,10 +3,12 @@ package com.streamtube.infrastructure.persistence.adapter;
 import com.streamtube.domain.shared.PageResult;
 import com.streamtube.domain.video.Video;
 import com.streamtube.domain.video.VideoRepository;
+import com.streamtube.domain.video.VideoStatus;
 import com.streamtube.domain.video.Visibility;
 import com.streamtube.infrastructure.persistence.entity.VideoEntity;
 import com.streamtube.infrastructure.persistence.mapper.PersistenceMapper;
 import com.streamtube.infrastructure.persistence.repository.VideoJpaRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +33,21 @@ public class VideoRepositoryAdapter implements VideoRepository {
   @Override
   public Optional<Video> findById(UUID id) {
     return jpa.findById(id).map(PersistenceMapper::toDomain);
+  }
+
+  @Override
+  public void delete(Video video) {
+    jpa.deleteById(video.id());
+  }
+
+  @Override
+  public List<Video> findStalePendingUploads(Instant cutoff, int limit) {
+    return jpa
+        .findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+            VideoStatus.PENDING_UPLOAD, cutoff, PageRequest.of(0, limit))
+        .stream()
+        .map(PersistenceMapper::toDomain)
+        .toList();
   }
 
   @Override

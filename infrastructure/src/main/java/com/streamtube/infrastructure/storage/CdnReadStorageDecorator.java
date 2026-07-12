@@ -110,4 +110,9 @@ public class CdnReadStorageDecorator implements StoragePort {
   public void deleteObject(String key) {
     delegate.deleteObject(key);
   }
+
+  @Override
+  public void deleteObjectsByPrefix(String prefix) {
+    delegate.deleteObjectsByPrefix(prefix);
+  }
 }
