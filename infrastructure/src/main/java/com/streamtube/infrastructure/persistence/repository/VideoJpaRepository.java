@@ -1,7 +1,9 @@
 package com.streamtube.infrastructure.persistence.repository;
 
+import com.streamtube.domain.video.VideoStatus;
 import com.streamtube.domain.video.Visibility;
 import com.streamtube.infrastructure.persistence.entity.VideoEntity;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +24,9 @@ public interface VideoJpaRepository extends JpaRepository<VideoEntity, UUID> {
 
   Page<VideoEntity> findByChannelIdAndVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
       UUID channelId, Visibility visibility, Pageable pageable);
+
+  List<VideoEntity> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+      VideoStatus status, Instant cutoff, Pageable pageable);
 
   Page<VideoEntity> findByVisibilityAndPublishedAtNotNullOrderByPublishedAtDesc(
       Visibility visibility, Pageable pageable);

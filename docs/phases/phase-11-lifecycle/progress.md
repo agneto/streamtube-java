@@ -1,17 +1,17 @@
 # phase-11-lifecycle — Progress
 
-**Status:** not started
-**SIs:** 0/7 completed
+**Status:** completed
+**SIs:** 7/7 completed
 
 | SI | Description | Status | Tests |
 |----|-------------|--------|-------|
-| SI-11.1 | Domain/ports (delete, stale query, StorageCleanupQueue) | pending | |
-| SI-11.2 | Flyway V12 (storage_cleanups) | pending | |
-| SI-11.3 | Persistence (delete, stale, cleanup queue — entity visível ao worker) | pending | |
-| SI-11.4 | Storage (deleteObjectsByPrefix paginado/batched + fake) | pending | |
-| SI-11.5 | Use cases + wiring (DELETE route, sweeper agendado, listener drop) | pending | |
-| SI-11.6 | Tests (unit + E2E + smoke com objetos sumindo do MinIO) | pending | |
-| SI-11.7 | Docs + DoD | pending | |
+| SI-11.1 | Domain/ports (delete, stale query, StorageCleanupQueue) | done | no entity changes; prefix families centralized in VideoArtifacts so deletion and purge can never drift |
+| SI-11.2 | Flyway V12 (storage_cleanups) | done | applied by Testcontainers E2E |
+| SI-11.3 | Persistence (delete, stale, cleanup queue — entity visível ao worker) | done | StorageCleanupEntity in the shared entity package (ADV-09) |
+| SI-11.4 | Storage (deleteObjectsByPrefix paginado/batched + fake) | done | ListObjectsV2 + DeleteObjects iterated to exhaustion (ADV-06) |
+| SI-11.5 | Use cases + wiring (DELETE route, sweeper agendado, listener drop) | done | worker-only beans (ProcessVideoUseCase precedent); @EnableScheduling; dev compose sweeps every 20s |
+| SI-11.6 | Tests (unit + E2E + smoke) | done | DeleteVideoUseCaseTest (exact prefixes, abort-before-delete order, no in-tx storage), LifecycleSweeperUseCasesTest (cutoff math, remove-only-after-success), listener drop; E2E full deletion + stale purge |
+| SI-11.7 | Docs + DoD | done | system-design §6 (last item flipped), deploy.md §6, GUIA, Postman "13. Apagar vídeo" |
 
 ## Notes
 

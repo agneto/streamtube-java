@@ -116,6 +116,17 @@ public class FakeStorage implements StoragePort {
     objects.remove(key);
   }
 
+  @Override
+  public void deleteObjectsByPrefix(String prefix) {
+    objects.keySet().removeIf(k -> k.startsWith(prefix));
+    textObjects.keySet().removeIf(k -> k.startsWith(prefix));
+    deletedPrefixes.add(prefix);
+  }
+
+  /** Test hook: prefixes wiped by the cleanup sweeper, in order. */
+  public final java.util.List<String> deletedPrefixes =
+      java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
   /** Test hook: simulates the client PUTting one part to its presigned URL. */
   public void receivePart(String uploadId, int partNumber, long sizeBytes) {
     sessions.computeIfAbsent(uploadId, k -> new ConcurrentHashMap<>()).put(partNumber, sizeBytes);

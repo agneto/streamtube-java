@@ -58,4 +58,7 @@ public interface StoragePort {
 
   /** Removes an object (assembled multipart object whose size failed verification). */
   void deleteObject(String key);
+
+  /** Removes every object under {@code prefix} (deleting an empty prefix is a no-op). */
+  void deleteObjectsByPrefix(String prefix);
 }

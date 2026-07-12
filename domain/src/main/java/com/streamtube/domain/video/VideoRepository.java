@@ -1,6 +1,7 @@
 package com.streamtube.domain.video;
 
 import com.streamtube.domain.shared.PageResult;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +34,12 @@ public interface VideoRepository {
 
   /** Subscribed-channels feed: published + PUBLIC videos of channels the user follows. */
   PageResult<Video> findSubscriptionFeed(UUID userId, int page, int size);
+
+  /** Hard delete; comments and reactions go with the row (DB-level cascades). */
+  void delete(Video video);
+
+  /** Stale drafts (PENDING_UPLOAD older than {@code cutoff}), oldest first — sweeper input. */
+  List<Video> findStalePendingUploads(Instant cutoff, int limit);
 
   /** Home grid: published + PUBLIC platform-wide, newest first; {@code categoryId} optional. */
   PageResult<Video> findListedPage(UUID categoryId, int page, int size);

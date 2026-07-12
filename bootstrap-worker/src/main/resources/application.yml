@@ -45,3 +45,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+cleanup:
+  # Lifecycle sweeper (Phase 11): PENDING_UPLOAD drafts older than this are retired, and the
+  # storage-cleanup outbox is drained. Idempotent — double runs across workers are harmless.
+  stale-upload-days: ${CLEANUP_STALE_UPLOAD_DAYS:7}
+  interval-cron: ${CLEANUP_INTERVAL_CRON:0 */15 * * * *}
