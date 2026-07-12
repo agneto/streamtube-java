@@ -1,6 +1,7 @@
 package com.streamtube.worker.listener;
 
 import com.streamtube.application.video.ProcessVideoUseCase;
+import com.streamtube.domain.shared.VideoExceptions.VideoNotFoundException;
 import com.streamtube.infrastructure.messaging.VideoProcessingMessage;
 import com.streamtube.infrastructure.messaging.VideoQueue;
 import org.slf4j.Logger;
@@ -27,7 +28,14 @@ public class VideoProcessingListener {
   @RabbitListener(queues = VideoQueue.QUEUE)
   public void onMessage(VideoProcessingMessage message) {
     log.info("Processing video {}", message.videoId());
-    processVideo.execute(message.videoId());
+    try {
+      processVideo.execute(message.videoId());
+    } catch (VideoNotFoundException e) {
+      // Deleted between enqueue and processing (Phase 11): not a failure — ack and drop,
+      // never retry x3 into the DLQ for a video that no longer exists.
+      log.info("Video {} was deleted before processing; dropping the job", message.videoId());
+      return;
+    }
     log.info("Video {} ready", message.videoId());
   }
 

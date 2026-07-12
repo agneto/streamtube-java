@@ -291,12 +291,16 @@ mapeia essas tabelas.
    internas do worker continuam presignados direto no storage. A integração é um decorator sobre
    o `StoragePort` — zero mudança nos use cases. A autorização segue na emissão de URL pela API.
 
-**Caminhos naturais restantes, sem mudar a arquitetura:**
+4. ~~**Limpeza de órfãos**~~ + **deleção de vídeo** — **Fase 11**: `DELETE /videos/{id}` apaga a
+   linha (interações sociais caem por cascade) na transação e enfileira os prefixos de storage
+   (original, thumbnails, escada HLS) numa **fila outbox** drenada pelo sweeper agendado do
+   worker, que também aposenta rascunhos `PENDING_UPLOAD` velhos (default 7 dias). At-least-once
+   e idempotente; sessões multipart abandonadas seguem com a regra de lifecycle do bucket.
 
-4. **Notificação de bucket** substituindo o `complete-upload` se o requisito de portabilidade
+**Caminho restante, sem mudar a arquitetura:**
+
+5. **Notificação de bucket** substituindo o `complete-upload` se o requisito de portabilidade
    mudar (§3.3).
-5. **Limpeza de órfãos** — job periódico para `PENDING_UPLOAD` antigos e objetos sem registro
-   (sessões multipart abandonadas já são varridas por lifecycle do bucket, ver `deploy.md`).
 
 ## Referências
 

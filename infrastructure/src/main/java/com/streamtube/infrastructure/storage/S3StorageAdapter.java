@@ -263,6 +263,43 @@ public class S3StorageAdapter implements StoragePort {
     internalClient.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
   }
 
+  @Override
+  public void deleteObjectsByPrefix(String prefix) {
+    // Listings page at 1000 and DeleteObjects caps at 1000 keys — iterate to exhaustion, or a
+    // long video's HLS ladder outlives its "deletion".
+    String continuationToken = null;
+    software.amazon.awssdk.services.s3.model.ListObjectsV2Response page;
+    do {
+      software.amazon.awssdk.services.s3.model.ListObjectsV2Request.Builder listRequest =
+          software.amazon.awssdk.services.s3.model.ListObjectsV2Request.builder()
+              .bucket(bucket)
+              .prefix(prefix);
+      if (continuationToken != null) {
+        listRequest.continuationToken(continuationToken);
+      }
+      page = internalClient.listObjectsV2(listRequest.build());
+      if (!page.contents().isEmpty()) {
+        List<software.amazon.awssdk.services.s3.model.ObjectIdentifier> keys =
+            page.contents().stream()
+                .map(
+                    o ->
+                        software.amazon.awssdk.services.s3.model.ObjectIdentifier.builder()
+                            .key(o.key())
+                            .build())
+                .toList();
+        internalClient.deleteObjects(
+            software.amazon.awssdk.services.s3.model.DeleteObjectsRequest.builder()
+                .bucket(bucket)
+                .delete(
+                    software.amazon.awssdk.services.s3.model.Delete.builder()
+                        .objects(keys)
+                        .build())
+                .build());
+      }
+      continuationToken = page.nextContinuationToken();
+    } while (Boolean.TRUE.equals(page.isTruncated()));
+  }
+
   private GetObjectPresignRequest getRequest(String key, String disposition, Duration ttl) {
     GetObjectRequest.Builder get = GetObjectRequest.builder().bucket(bucket).key(key);
     if (disposition != null) {

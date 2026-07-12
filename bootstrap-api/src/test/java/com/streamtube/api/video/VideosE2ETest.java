@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -601,6 +602,110 @@ class VideosE2ETest {
             delete("/api/v1/videos/" + id + "/multipart").header("Authorization", "Bearer " + token))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("NO_ACTIVE_UPLOAD"));
+  }
+
+  @Autowired private com.streamtube.application.port.out.StorageCleanupQueue cleanupQueue;
+  @Autowired private com.streamtube.domain.video.VideoRepository videoRepository;
+
+  @Test
+  void deleteVideoRemovesRowSocialRowsAndStorageArtifacts() throws Exception {
+    String token = registerConfirmLogin("delete-owner@test.com");
+    String other = registerConfirmLogin("delete-other@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Para apagar"))))
+                .andExpect(status().isCreated()));
+    String id = init.get("id").asText();
+    String slug = init.get("slug").asText();
+    markReady(slug);
+    mockMvc
+        .perform(post("/api/v1/videos/" + id + "/publish").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk());
+
+    // give it social artifacts: a comment (with reply) and a reaction
+    JsonNode comment =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos/" + id + "/comments")
+                        .header("Authorization", "Bearer " + other)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("content", "vai sumir"))))
+                .andExpect(status().isCreated()));
+    String commentId = comment.get("id").asText();
+    mockMvc
+        .perform(
+            put("/api/v1/videos/" + id + "/reaction")
+                .header("Authorization", "Bearer " + other)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"type\":\"LIKE\"}"))
+        .andExpect(status().isNoContent());
+
+    // non-owner cannot delete
+    mockMvc
+        .perform(delete("/api/v1/videos/" + id).header("Authorization", "Bearer " + other))
+        .andExpect(status().isForbidden());
+
+    // owner deletes: row + cascaded social rows gone, every read 404
+    mockMvc
+        .perform(delete("/api/v1/videos/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isNoContent());
+    mockMvc.perform(get("/api/v1/videos/" + slug)).andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug + "/comments"))
+        .andExpect(status().isNotFound());
+    mockMvc
+        .perform(get("/api/v1/comments/" + commentId + "/replies"))
+        .andExpect(status().isNotFound());
+    // second delete: the resource is gone — 404 is the truthful answer
+    mockMvc
+        .perform(delete("/api/v1/videos/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isNotFound());
+
+    // drain the outbox the way the worker's sweeper does and assert the exact prefix set
+    new com.streamtube.application.video.ProcessStorageCleanupsUseCase(cleanupQueue, fakeStorage)
+        .execute();
+    assertThat(fakeStorage.deletedPrefixes)
+        .contains("videos/" + slug, "thumbnails/" + slug, "hls/" + slug + "/");
+  }
+
+  @Test
+  void staleDraftIsPurgedBySweeperRules() throws Exception {
+    String token = registerConfirmLogin("stale-draft@test.com");
+    JsonNode init =
+        readJson(
+            mockMvc
+                .perform(
+                    post("/api/v1/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(initiateBody("Abandonado"))))
+                .andExpect(status().isCreated()));
+    String slug = init.get("slug").asText();
+
+    // initiate happened 8 days "ago"
+    try (Connection c = dataSource.getConnection();
+        var st =
+            c.prepareStatement(
+                "UPDATE videos SET created_at = now() - interval '8 days' WHERE slug = ?")) {
+      st.setString(1, slug);
+      st.executeUpdate();
+    }
+
+    int purged =
+        new com.streamtube.application.video.PurgeStaleUploadsUseCase(
+                videoRepository, fakeStorage, cleanupQueue, java.time.Clock.systemUTC(), 7)
+            .execute();
+
+    assertThat(purged).isGreaterThanOrEqualTo(1);
+    mockMvc
+        .perform(get("/api/v1/videos/" + slug).header("Authorization", "Bearer " + token))
+        .andExpect(status().isNotFound());
   }
 
   @Test
