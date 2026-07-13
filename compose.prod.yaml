@@ -1,6 +1,8 @@
-# Production override. Usage:
+# Production override. Usage (pulls the published GHCR images — no build on the host):
 #
-#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#   STREAMTUBE_VERSION=1.4.0 docker compose -f compose.yaml -f compose.prod.yaml up -d
+#
+# Add --build only to force a local build from source instead of pulling.
 #
 # Every secret is REQUIRED (${VAR:?...}): booting production without them aborts immediately —
 # the dev defaults from compose.yaml/application.yml never leak into prod. Postgres, RabbitMQ and
@@ -11,6 +13,11 @@
 
 services:
   api:
+    # Pull the published image (built + pushed by the CI/CD pipeline) instead of building on the
+    # host. `up -d` pulls it; keep `--build` only if you deliberately want a local build (the
+    # inherited build: context still applies then). Pin STREAMTUBE_VERSION to a released tag
+    # (e.g. 1.4.0) in production; `latest` is a convenience default.
+    image: ghcr.io/agneto/streamtube-api:${STREAMTUBE_VERSION:-latest}
     restart: unless-stopped
     environment:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required in production}
@@ -32,6 +39,7 @@ services:
       CDN_SECRET: ${CDN_SECRET:-}
 
   worker:
+    image: ghcr.io/agneto/streamtube-worker:${STREAMTUBE_VERSION:-latest}
     restart: unless-stopped
     environment:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required in production}

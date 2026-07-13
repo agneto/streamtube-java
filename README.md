@@ -1,5 +1,8 @@
 # StreamTube — Backend (Java 21 / Spring Boot, Clean Architecture)
 
+[![CI](https://github.com/agneto/streamtube-java/actions/workflows/ci.yml/badge.svg)](https://github.com/agneto/streamtube-java/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/agneto/streamtube-java/actions/workflows/codeql.yml/badge.svg)](https://github.com/agneto/streamtube-java/actions/workflows/codeql.yml)
+
 A Java reimplementation of the StreamTube backend (a video-sharing platform). The complete
 reference roadmap (phases 01–07) is delivered, plus three post-1.0 improvements: resumable
 multipart upload, HLS adaptive streaming and an optional CDN read profile.
@@ -86,12 +89,22 @@ and marks the video `READY` or `ERROR` (retries ×3 → DLQ). End-to-end walkthr
 ### Production
 
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+STREAMTUBE_VERSION=1.4.0 docker compose -f compose.yaml -f compose.prod.yaml up -d
 ```
 
-Secrets are fail-fast (`${VAR:?}`), only the API (8080) and storage (9000) stay exposed, Mailpit
-is replaced by real SMTP. Environment table, scaling notes, HLS/CDN operations and the
-first-deploy checklist: [docs/deploy.md](docs/deploy.md).
+Pulls the images CI publishes to GHCR (`ghcr.io/agneto/streamtube-api` and `-worker`) — no build
+on the host; add `--build` only to build from source. Secrets are fail-fast (`${VAR:?}`), only the
+API (8080) and storage (9000) stay exposed, Mailpit is replaced by real SMTP. Environment table,
+scaling notes, HLS/CDN operations and the first-deploy checklist: [docs/deploy.md](docs/deploy.md).
+
+### CI/CD
+
+Every push and PR runs [`ci.yml`](.github/workflows/ci.yml): a **verify** job (format check +
+full build with unit, Testcontainers E2E and ArchUnit, results annotated on the PR) and an
+**images** job that builds both Dockerfiles. Pushes to `main` and `vX.Y.Z` tags publish the two
+images to GHCR, and a tag also cuts a GitHub Release. [CodeQL](.github/workflows/codeql.yml),
+Dependabot and Gradle dependency submission cover the supply chain. Pipeline details and the
+one-time repo settings for GHCR: [docs/deploy.md](docs/deploy.md) §10.
 
 ## Workflow
 
