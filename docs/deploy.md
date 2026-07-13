@@ -131,5 +131,53 @@ token `secure_link`; uploads e leituras do worker seguem no storage.
 - [ ] `CORS_ALLOWED_ORIGINS` com a origem exata do frontend (esquema + host + porta)
 - [ ] SMTP real testado (registro manda e-mail de confirmação — sem ele ninguém loga)
 - [ ] Backup do volume `pgdata` agendado (o storage pode ser recriado; o banco não)
+- [ ] `STREAMTUBE_VERSION` fixado numa tag publicada (ex.: `1.4.0`), não `latest`, para deploy
+      reproduzível — ver §10
 - [ ] Smoke pós-deploy: register → confirm → login → upload → publish → stream (o
       `docs/GUIA-DE-USO.md` §6 tem o passo a passo em curl)
+
+## 10. CI/CD e imagens publicadas (Fase 12)
+
+O pipeline (`.github/workflows/ci.yml`) roda em todo push e PR:
+
+- **`verify`** — `spotlessCheck` + `./gradlew build` completo (unit + integração + Testcontainers
+  E2E + ArchUnit; o runner do GitHub tem Docker, então o E2E roda de verdade). Resultados dos
+  testes aparecem anotados no PR.
+- **`images`** — constrói `Dockerfile.api` e `Dockerfile.worker` em **todo** run (valida que as
+  imagens ainda buildam). **Publica** no GHCR só em push na `main` e em tags `v*`; PRs (inclusive
+  de forks) nunca autenticam no registry.
+- **`release`** — só em tag `v*`, depois de `verify` e `images` verdes: cria o GitHub Release com
+  notas geradas + as coordenadas das imagens.
+
+`codeql.yml` (análise estática Java, semanal + push/PR), `dependabot.yml` (Gradle + Actions,
+semanal) e `dependency-submission.yml` (grafo de dependências na `main`) completam o supply-chain.
+
+### Imagens
+
+| Imagem | Coordenada |
+|--------|-----------|
+| API | `ghcr.io/agneto/streamtube-api` |
+| Worker | `ghcr.io/agneto/streamtube-worker` |
+
+Tags: em push na `main` → `latest` e `sha-<curto>`; em tag `vX.Y.Z` → `X.Y.Z`, `X.Y` e `latest`.
+Consuma via `STREAMTUBE_VERSION` no `compose.prod.yaml` (§1) — pinne numa versão em produção.
+
+### Como um release publica as imagens
+
+O ritual de release não muda (branch → bump da `version` → tag anotada `vX.Y.Z` → merge em `main`
+e `dev`). O **push da tag** é o gatilho: o pipeline reconstrói, revalida e publica
+`streamtube-api:X.Y.Z`/`-worker:X.Y.Z` e cria o Release. Você decide *quando* taggear; o pipeline
+faz o resto.
+
+### Configuração única do repositório (fora do YAML)
+
+Antes do primeiro push de imagem dar certo, no GitHub:
+
+- **Permissão de escrita de pacotes:** Settings → Actions → General → *Workflow permissions* com
+  "Read and write" (ou confie no `permissions: packages: write` já declarado no job `images`, que
+  basta com o `GITHUB_TOKEN` padrão — nenhum PAT é necessário).
+- **Pacotes GHCR:** na primeira publicação os dois pacotes nascem **privados** e não vinculados ao
+  repo. Em cada pacote (Profile/Org → Packages): *Connect repository* → `streamtube-java` e defina
+  a visibilidade (público para `docker pull` anônimo; privado exige login no deploy).
+- **Deploy privado:** se mantiver privado, o host de produção precisa
+  `docker login ghcr.io` (com um token de leitura de pacotes) antes do `compose ... up`.

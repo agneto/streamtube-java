@@ -1,0 +1,36 @@
+# CodeQL static analysis for Java. Kept separate from ci.yml for its own schedule and the
+# security-events permission. build-mode: none extracts the database straight from source — no
+# compilation — which is the robust choice for a multi-module Gradle build: the manual/autobuild
+# tracer routinely fails to observe Gradle's (daemon / in-process) javac and reports
+# "no source code seen during build".
+name: CodeQL
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "27 4 * * 1" # weekly, Monday 04:27 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: none
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
