@@ -8,7 +8,7 @@
 | SI-12.1 | Restructure ci.yml (verify/images/release) + PR test annotations + tag-safe concurrency | done | verify keeps spotlessCheck + full `gradle build` verbatim; mikepenz/action-junit-report on `**/build/test-results/test/*.xml`; concurrency exempts tag refs (ADV-03) |
 | SI-12.2 | Container images → GHCR (build every run, push on main/v* tags) | done | buildx + metadata-action + build-push-action@v6, gha cache scoped per image; push gated off pull_request/dev via a `publish` step (ADV-01); login only when publishing (ADV-02) |
 | SI-12.3 | Automated GitHub Release from v* tags | done | release `if: refs/tags/v*`, `needs:[verify,images]` (ADV-04); body carries `streamtube-{api,worker}:X.Y.Z` coordinates |
-| SI-12.4 | Supply chain: Dependabot + CodeQL + dependency submission | done | codeql.yml (java-kotlin, build-mode manual + `compileJava compileTestJava`, ADV-06); dependabot.yml (gradle grouped minor/patch + github-actions); dependency-submission.yml on main |
+| SI-12.4 | Supply chain: Dependabot + CodeQL + dependency submission | done | codeql.yml (java-kotlin, **build-mode: none** — corrects ADV-06: manual build-mode failed with "no source code seen" because CodeQL's tracer doesn't observe Gradle's daemon/in-process javac; `none` extracts from source); dependabot.yml (gradle grouped minor/patch + github-actions); dependency-submission.yml on main |
 | SI-12.5 | Docs + DoD (README badges/pull note, deploy.md §10, compose.prod image refs, progress) | done | compose.prod api/worker now pull `ghcr.io/agneto/streamtube-*:${STREAMTUBE_VERSION:-latest}`; README CI+CodeQL badges + CI/CD note; deploy.md §10 (topology, coordinates, required repo settings ADV-08); checklist item for pinned version |
 
 ## Notes
