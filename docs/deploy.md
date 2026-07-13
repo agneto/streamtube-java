@@ -179,5 +179,10 @@ Antes do primeiro push de imagem dar certo, no GitHub:
 - **Pacotes GHCR:** na primeira publicação os dois pacotes nascem **privados** e não vinculados ao
   repo. Em cada pacote (Profile/Org → Packages): *Connect repository* → `streamtube-java` e defina
   a visibilidade (público para `docker pull` anônimo; privado exige login no deploy).
+- **Dependency graph:** Settings → Code security and analysis → *Dependency graph* → **Enable**.
+  Em repositório privado vem desligado por padrão, e o job `dependency-submission` (push na `main`)
+  falha com "Dependency graph is disabled for this repository" enquanto não estiver ligado — o
+  Dependabot de *version updates* funciona sem ele, mas o submit do grafo (que alimenta os alertas
+  de segurança) não. Habilite também *Dependabot alerts* no mesmo painel para fechar o ciclo.
 - **Deploy privado:** se mantiver privado, o host de produção precisa
   `docker login ghcr.io` (com um token de leitura de pacotes) antes do `compose ... up`.
