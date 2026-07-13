@@ -1,0 +1,25 @@
+# Submits the resolved Gradle dependency graph to GitHub on every main push, so the Dependency
+# graph and Dependabot security alerts see the versions the build actually resolves (a build
+# script alone doesn't tell GitHub the transitive tree).
+name: Dependency submission
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/dependency-submission@v4
