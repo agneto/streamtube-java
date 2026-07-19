@@ -219,6 +219,20 @@ Os dois devolvem o "card" da home: thumbnail, título, canal (id/name/nickname),
 | GET | `/api/v1/subscriptions` | autenticada | Canais que sigo |
 | GET | `/api/v1/subscriptions/videos` | autenticada | Feed: últimos vídeos publicados dos canais que sigo |
 
+### Notificações (Fase 13)
+
+Feed in-app alimentado pelos gatilhos sociais: **inscrição** notifica o dono do canal, **comentário**
+no vídeo notifica o dono do vídeo, **resposta** notifica o autor do comentário-pai, e **publicar um
+vídeo público** notifica todos os inscritos. Notificações no próprio conteúdo são suprimidas e
+re-inscrição não duplica. Tudo é escopo do chamador (só vejo/marco as minhas).
+
+| Método | Caminho | Autenticação | O que faz |
+|--------|---------|--------------|-----------|
+| GET | `/api/v1/notifications` | autenticada | Minhas notificações, mais recentes primeiro (paginado) |
+| GET | `/api/v1/notifications/unread-count` | autenticada | Quantas não lidas (`{ "count": N }`) para o badge |
+| POST | `/api/v1/notifications/{id}/read` | autenticada | Marca uma como lida (204; idempotente; id de outro é no-op) |
+| POST | `/api/v1/notifications/read-all` | autenticada | Marca todas as minhas como lidas (204) |
+
 A lista completa (incl. edição de vídeo/canal, publish, thumbnails, categorias e páginas de
 canal das Fases 04–05) está no Swagger (`http://localhost:8080/swagger-ui.html`) e na coleção
 Postman (`docs/postman/`).
