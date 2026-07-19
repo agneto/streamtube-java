@@ -12,16 +12,18 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * {@code application} and {@code infrastructure} modules. JPA entities and Spring Data repositories
  * live in the infrastructure module, so they are registered explicitly here.
  */
-// The social slice (infrastructure.social) is registered here only: the worker's persistence
-// unit never maps reactions/comments/subscriptions — tables it never touches.
+// The social and notification slices are registered here only: the worker's persistence unit
+// never maps reactions/comments/subscriptions/notifications — tables it never touches.
 @SpringBootApplication(scanBasePackages = "com.streamtube")
 @EntityScan({
   "com.streamtube.infrastructure.persistence.entity",
-  "com.streamtube.infrastructure.social"
+  "com.streamtube.infrastructure.social",
+  "com.streamtube.infrastructure.notification"
 })
 @EnableJpaRepositories({
   "com.streamtube.infrastructure.persistence.repository",
-  "com.streamtube.infrastructure.social"
+  "com.streamtube.infrastructure.social",
+  "com.streamtube.infrastructure.notification"
 })
 public class StreamtubeApiApplication {
 
