@@ -1008,6 +1008,78 @@
           }
         }
       ]
+    },
+    {
+      "name": "Notificações",
+      "item": [
+        {
+          "name": "1. Minhas notificações",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "const items = pm.response.json().items;",
+                  "if (items.length) pm.collectionVariables.set('notificationId', items[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] },
+            "description": "Minhas notificações, mais recentes primeiro. Cada item traz type (NEW_SUBSCRIBER | VIDEO_COMMENT | COMMENT_REPLY | NEW_VIDEO), read, o ator (canal) e as refs de vídeo/comentário quando fazem sentido. O teste guarda o id do primeiro item em {{notificationId}} para o request 3."
+          }
+        },
+        {
+          "name": "2. Contador de não lidas (badge)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.code === 200);", "pm.test('tem count', () => pm.expect(pm.response.json().count).to.be.at.least(0));"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications/unread-count", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications", "unread-count"] },
+            "description": "Quantas das minhas notificações estão não lidas ({ \"count\": N }) — apoiada no índice parcial WHERE read_at IS NULL."
+          }
+        },
+        {
+          "name": "3. Marcar uma como lida",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications", "{{notificationId}}", "read"] },
+            "description": "Marca a notificação de {{notificationId}} como lida (preenchida pelo request 1). Idempotente e escopo do dono: um id de outro usuário devolve 204 mas não muda nada (sem IDOR)."
+          }
+        },
+        {
+          "name": "4. Marcar todas como lidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.code === 204);"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/notifications/read-all", "host": ["{{baseUrl}}"], "path": ["api", "v1", "notifications", "read-all"] },
+            "description": "Zera o badge: marca todas as minhas não lidas como lidas."
+          }
+        }
+      ]
     }
   ]
 }

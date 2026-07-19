@@ -218,6 +218,10 @@ erDiagram
     videos ||--o{ comments : ""
     comments |o--o{ comments : "respostas (1 nível)"
     comments ||--o{ comment_reactions : ""
+    users ||--o{ notifications : "recebe"
+    channels |o--o{ notifications : "ator"
+    videos |o--o{ notifications : ""
+    comments |o--o{ notifications : ""
 
     videos {
         uuid id PK
@@ -254,6 +258,20 @@ row-count do statement que mudou a linha (um `ON CONFLICT DO NOTHING` que não i
 incrementa). Nas entities JPA os contadores são `updatable = false`: um `save()` comum nunca
 reescreve o valor com um snapshot velho. A camada social é **exclusiva da API** — o worker não
 mapeia essas tabelas.
+
+**Notificações in-app (Fase 13):** os quatro gatilhos sociais (nova inscrição, comentário no
+vídeo, resposta ao comentário, novo vídeo público) gravam uma linha em `notifications` **na mesma
+transação** do gatilho — não pelo `AfterCommitExecutor`, que existe para sistemas externos (SMTP,
+fila): a notificação compartilha o destino do comentário/inscrição que a gerou (rola atrás junto).
+O modelo é **referencial** (`recipient_user_id` = usuário; `actor_channel_id` = canal; refs
+opcionais a vídeo/comentário; `read_at IS NULL` = não lida): nome/thumbnail são resolvidos por join
+na leitura, como as demais read-views. O fan-out de "novo vídeo" é **um único** `INSERT INTO
+notifications ... SELECT ... FROM subscriptions WHERE channel_id = ?` (uma linha por inscrito, nunca
+laço), no espírito do `findSubscriptionFeed` da Fase 06. A limpeza é **só FK `ON DELETE CASCADE`**
+nas quatro referências — a deleção de vídeo da Fase 11 já leva as notificações do vídeo junto; sem
+sweeper, sem outbox. Como a social, o slice `infrastructure.notification` é **exclusivo da API**.
+`VIDEO_READY/FAILED` (originados no **worker**) ficam de fora de propósito — incluí-los exigiria
+mover o slice para a persistência compartilhada; é a evolução natural, junto de push em tempo real.
 
 ---
 
@@ -297,10 +315,18 @@ mapeia essas tabelas.
    worker, que também aposenta rascunhos `PENDING_UPLOAD` velhos (default 7 dias). At-least-once
    e idempotente; sessões multipart abandonadas seguem com a regra de lifecycle do bucket.
 
+5. **Notificações in-app** — **Fase 13**: feed autenticado (`GET /notifications`,
+   `/unread-count`, `POST /{id}/read`, `/read-all`) alimentado pelos quatro gatilhos sociais.
+   Escrita na transação do gatilho, fan-out set-based sobre `subscriptions`, limpeza por FK cascade,
+   tudo API-side (o worker não é tocado). Detalhado no §4.
+
 **Caminho restante, sem mudar a arquitetura:**
 
-5. **Notificação de bucket** substituindo o `complete-upload` se o requisito de portabilidade
+6. **Notificação de bucket** substituindo o `complete-upload` se o requisito de portabilidade
    mudar (§3.3).
+
+7. **Push em tempo real** (WebSocket/SSE) e **`VIDEO_READY/FAILED`** sobre a mesma tabela
+   `notifications` — a segunda move o slice para a persistência compartilhada e o fia no worker.
 
 ## Referências
 
