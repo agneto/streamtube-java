@@ -3,11 +3,11 @@ springBoot = "3.5.3"
 springDependencyManagement = "1.1.7"
 springdoc = "2.8.6"
 spotless = "6.25.0"
-jjwt = "0.12.6"
-bouncycastle = "1.78.1"
+jjwt = "0.13.0"
+bouncycastle = "1.85"
 bucket4j = "8.10.1"
-awssdk = "2.28.16"
-archunit = "1.4.1"
+awssdk = "2.48.3"
+archunit = "1.4.2"
 
 [libraries]
 springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
